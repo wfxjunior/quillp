@@ -10,6 +10,43 @@ const config: Config = {
     extend: {
       // ── Quilp Design Tokens ──────────────────────────────────────────
       colors: {
+        // ── Shadcn CSS-variable aliases ──────────────────────────────────
+        // These map Tailwind utilities (bg-background, text-foreground, etc.)
+        // to the CSS vars defined in globals.css. Required by shadcn components.
+        background:  'var(--background)',
+        foreground:  'var(--foreground)',
+        border:      'var(--border)',
+        input:       'var(--input)',
+        ring:        'var(--ring)',
+        primary: {
+          DEFAULT:    'var(--primary)',
+          foreground: 'var(--primary-foreground)',
+        },
+        secondary: {
+          DEFAULT:    'var(--secondary)',
+          foreground: 'var(--secondary-foreground)',
+        },
+        muted: {
+          DEFAULT:    'var(--muted)',
+          foreground: 'var(--muted-foreground)',
+        },
+        accent: {
+          DEFAULT:    'var(--accent)',
+          foreground: 'var(--accent-foreground)',
+        },
+        destructive: {
+          DEFAULT:    'var(--destructive)',
+        },
+        card: {
+          DEFAULT:    'var(--card)',
+          foreground: 'var(--card-foreground)',
+        },
+        popover: {
+          DEFAULT:    'var(--popover)',
+          foreground: 'var(--popover-foreground)',
+        },
+
+        // ── Quilp Design Tokens ──────────────────────────────────────────
         sage: {
           50:  '#EFF6ED',
           100: '#D5E9D0',
