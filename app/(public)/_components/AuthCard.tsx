@@ -34,7 +34,7 @@ export function AuthCard({ title, subtitle, children, footer, proof }: AuthCardP
         href="/"
         className="font-serif text-[22px] font-medium text-ink tracking-[-0.5px] mb-8 block select-none"
       >
-        Quil<span className="text-sage-600">p</span>
+        Quilp<span className="text-sage-400">.</span>
       </Link>
 
       {/* ── Card ───────────────────────────────────────────────── */}

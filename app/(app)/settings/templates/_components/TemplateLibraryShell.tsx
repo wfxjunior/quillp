@@ -11,6 +11,7 @@
 
 import { useState, useRef, useCallback } from 'react'
 import { Pencil, Save, X, Loader2, FileText } from 'lucide-react'
+import DOMPurify from 'dompurify'
 import { useToast } from '@/components/ui/NotificationToast'
 import { cn } from '@/lib/utils'
 import type { FirmTemplate, DocumentType } from '@/types'
@@ -233,7 +234,7 @@ function TemplateCard({ template, isEditing, isOwner, firmId, onEdit, onCancel, 
             ref={editorRef}
             contentEditable
             suppressContentEditableWarning
-            dangerouslySetInnerHTML={{ __html: template.content_html }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(template.content_html) }}
             className={cn(
               'min-h-[300px] max-h-[560px] overflow-y-auto',
               'border border-beige-200 rounded-[10px] p-4',

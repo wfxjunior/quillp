@@ -151,7 +151,7 @@ export default function Sidebar() {
           href="/dashboard"
           className="font-serif text-[20px] font-medium text-white tracking-[-0.4px] leading-none block select-none"
         >
-          Quil<span className="text-sage-400">p</span>
+          Quilp<span className="text-sage-400">.</span>
         </Link>
         <p className="text-[11px] text-white/[0.38] mt-[5px] truncate tracking-wide">
           {firm.name}

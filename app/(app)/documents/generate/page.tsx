@@ -10,6 +10,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react'
+import DOMPurify from 'dompurify'
 import { useRouter } from 'next/navigation'
 import {
   ChevronDown, Search, X, Download, Send, Save, FileText, RefreshCw,
@@ -284,7 +285,7 @@ export default function DocumentGeneratePage() {
         // Direct DOM mutation — zero React re-renders during streaming
         const body = iframeRef.current?.contentDocument?.body
         if (body) {
-          body.innerHTML = accumulatedRef.current
+          body.innerHTML = DOMPurify.sanitize(accumulatedRef.current)
           // Auto-resize iframe to content height
           if (iframeRef.current) {
             const h = body.scrollHeight
@@ -650,7 +651,7 @@ export default function DocumentGeneratePage() {
                   // Re-inject any content that arrived before the iframe finished loading
                   const doc = iframeRef.current?.contentDocument
                   if (doc?.body && accumulatedRef.current) {
-                    doc.body.innerHTML = accumulatedRef.current
+                    doc.body.innerHTML = DOMPurify.sanitize(accumulatedRef.current)
                   }
                 }}
               />

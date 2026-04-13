@@ -85,6 +85,7 @@ export function PortalShell({
         <div className="max-w-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3">
             {firm.logo_url ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img src={firm.logo_url} alt={firm.name} className="h-8 w-auto" />
             ) : (
               <div className="h-8 w-8 rounded-lg bg-sage-100 flex items-center justify-center">

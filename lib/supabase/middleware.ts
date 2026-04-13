@@ -9,6 +9,24 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+
+  // ── Route protection rules (blueprint-part2.md §9.3) ─────────────
+
+  // 1. Public routes — bail out before touching Supabase
+  const isPublicRoute =
+    pathname === '/' ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/signup') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/auth/callback') ||   // Supabase code exchange
+    pathname.startsWith('/portal/')
+
+  if (isPublicRoute) {
+    return NextResponse.next({ request })
+  }
+
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
@@ -34,24 +52,6 @@ export async function updateSession(request: NextRequest) {
 
   // Refresh the session (do NOT add logic between createServerClient and getUser)
   const { data: { user } } = await supabase.auth.getUser()
-
-  const pathname = request.nextUrl.pathname
-
-  // ── Route protection rules (blueprint-part2.md §9.3) ─────────────
-
-  // 1. Public routes — always allow
-  const isPublicRoute =
-    pathname === '/' ||
-    pathname.startsWith('/login') ||
-    pathname.startsWith('/signup') ||
-    pathname.startsWith('/forgot-password') ||
-    pathname.startsWith('/reset-password') ||
-    pathname.startsWith('/auth/callback') ||   // Supabase code exchange
-    pathname.startsWith('/portal/')
-
-  if (isPublicRoute) {
-    return supabaseResponse
-  }
 
   // 2. No session → redirect to login
   if (!user) {

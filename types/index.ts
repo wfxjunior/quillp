@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────
 // 1. USER
 // ─────────────────────────────────────────
-export type UserRole = 'owner' | 'staff'
+export type UserRole = 'owner' | 'staff' | 'admin'
 
 export interface User {
   id: string

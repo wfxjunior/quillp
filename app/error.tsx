@@ -12,6 +12,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import * as Sentry from '@sentry/nextjs'
 
 interface ErrorProps {
   error: Error & { digest?: string }
@@ -20,8 +21,7 @@ interface ErrorProps {
 
 export default function GlobalError({ error, reset }: ErrorProps) {
   useEffect(() => {
-    // Log to console in dev; swap for Sentry.captureException(error) in production
-    console.error('[GlobalError]', error)
+    Sentry.captureException(error)
   }, [error])
 
   return (

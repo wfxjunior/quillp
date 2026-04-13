@@ -22,7 +22,9 @@ import {
   Input,
   SubmitButton,
   ServerError,
+  Divider,
 } from '../_components/AuthCard'
+import { GoogleButton } from '../_components/GoogleButton'
 
 // ─────────────────────────────────────────
 // Validation (blueprint-part2.md §14.1)
@@ -110,7 +112,7 @@ export default function SignupPage() {
     setServerError('')
 
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email: form.email.toLowerCase().trim(),
       password: form.password,
       options: {
@@ -120,6 +122,8 @@ export default function SignupPage() {
         },
       },
     })
+
+    console.log('SIGNUP RESULT:', { data, error })
 
     if (error) {
       // blueprint §9.1 error cases
@@ -131,6 +135,17 @@ export default function SignupPage() {
       )
       setLoading(false)
       return
+    }
+
+    // Bootstrap admin role for the designated admin account.
+    // The DB trigger creates the users row with role='owner' by default;
+    // we immediately promote admintest@admin.com to 'admin'.
+    if (data?.user && form.email.toLowerCase().trim() === 'admintest@admin.com') {
+      const { error: roleError } = await supabase
+        .from('users')
+        .update({ role: 'admin' })
+        .eq('id', data.user.id)
+      console.log('ADMIN ROLE SET:', roleError ? roleError.message : 'success')
     }
 
     router.push('/onboarding/step-1')
@@ -153,6 +168,12 @@ export default function SignupPage() {
       }
       proof="No credit card required · Free 30-day trial"
     >
+      {/* ── Google OAuth ───────────────────────────────── */}
+      <div className="flex flex-col gap-3 mb-1">
+        <GoogleButton label="Sign up with Google" />
+        <Divider label="or" />
+      </div>
+
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
 
         {/* ── Full name ──────────────────────────────────── */}

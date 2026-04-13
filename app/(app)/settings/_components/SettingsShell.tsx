@@ -170,6 +170,7 @@ export function SettingsShell({
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 rounded-[10px] border border-beige-200 bg-beige-50 flex items-center justify-center overflow-hidden shrink-0">
                 {logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={logoUrl} alt="Logo" className="h-full w-full object-cover" />
                 ) : (
                   <span className="text-[18px] font-bold text-ink-soft">

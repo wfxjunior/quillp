@@ -22,10 +22,8 @@ export async function POST(request: NextRequest) {
   const authHeader = request.headers.get('authorization')
   const secret     = process.env.CRON_SECRET
 
-  if (secret) {
-    if (!authHeader || authHeader !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
+  if (!secret || !authHeader || authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {

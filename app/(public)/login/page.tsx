@@ -22,7 +22,9 @@ import {
   Input,
   SubmitButton,
   ServerError,
+  Divider,
 } from '../_components/AuthCard'
+import { GoogleButton } from '../_components/GoogleButton'
 
 // useSearchParams() requires a Suspense boundary in Next.js 14
 export default function LoginPage() {
@@ -70,6 +72,8 @@ function LoginForm() {
       password,
     })
 
+    console.log('LOGIN RESULT:', { data, error })
+
     if (error) {
       // blueprint §9.2: never confirm whether email exists
       setServerError('Incorrect email or password.')
@@ -77,12 +81,14 @@ function LoginForm() {
       return
     }
 
-    // Check onboarding status — blueprint §9.2 step 3
+    // Check onboarding status + load role — blueprint §9.2 step 3
     const { data: userData } = await supabase
       .from('users')
-      .select('onboarding_completed')
+      .select('onboarding_completed, role')
       .eq('id', data.user.id)
       .single()
+
+    console.log('USER ROLE:', userData?.role)
 
     if (userData?.onboarding_completed) {
       router.push('/dashboard')
@@ -107,6 +113,12 @@ function LoginForm() {
         </>
       }
     >
+      {/* ── Google OAuth ───────────────────────────────── */}
+      <div className="flex flex-col gap-3 mb-1">
+        <GoogleButton />
+        <Divider label="or" />
+      </div>
+
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
 
         {/* ── Password reset success banner ──────────────── */}
