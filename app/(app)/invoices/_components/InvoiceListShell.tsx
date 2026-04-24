@@ -6,7 +6,7 @@
 
 import { useState, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Plus, Send, CheckCircle, Download, Loader2 } from 'lucide-react'
+import { Plus, Send, CheckCircle, Download, Loader2, CreditCard } from 'lucide-react'
 import { MetricCard } from '@/components/ui/MetricCard'
 import { useToast } from '@/components/ui/NotificationToast'
 import { cn } from '@/lib/utils'
@@ -18,7 +18,8 @@ interface InvoiceWithClient extends Invoice {
 }
 
 interface InvoiceListShellProps {
-  invoices: InvoiceWithClient[]
+  invoices:        InvoiceWithClient[]
+  stripeConnected: boolean
 }
 
 type FilterTab = 'all' | InvoiceStatus
@@ -61,7 +62,7 @@ function agingBucket(dueDate: string): '0-30' | '31-60' | '60+' {
   return '60+'
 }
 
-export function InvoiceListShell({ invoices }: InvoiceListShellProps) {
+export function InvoiceListShell({ invoices, stripeConnected }: InvoiceListShellProps) {
   const router = useRouter()
   const { show: toast } = useToast()
   const [tab,       setTab]       = useState<FilterTab>('all')
@@ -104,13 +105,13 @@ export function InvoiceListShell({ invoices }: InvoiceListShellProps) {
   async function handleMarkPaid(inv: InvoiceWithClient) {
     setLoading(l => ({ ...l, [`pay-${inv.id}`]: true }))
     try {
-      const res = await fetch(`/api/invoices/${inv.id}/pay`, { method: 'POST' })
+      const res = await fetch(`/api/invoices/${inv.id}/mark-paid`, { method: 'PATCH' })
       if (!res.ok) {
         const body = await res.json().catch(() => ({})) as { error?: string }
         throw new Error(body.error ?? 'Failed')
       }
-      const { paid_at } = await res.json() as { paid_at: string }
-      setLocalRows(rows => rows.map(r => r.id === inv.id ? { ...r, status: 'paid', paid_at } : r))
+      const { data } = await res.json() as { data: { paid_at: string } }
+      setLocalRows(rows => rows.map(r => r.id === inv.id ? { ...r, status: 'paid', paid_at: data.paid_at } : r))
       toast({ variant: 'success', message: `${inv.invoice_number} marked as paid` })
     } catch (err) {
       toast({ variant: 'error', message: err instanceof Error ? err.message : 'Failed to mark paid' })
@@ -142,6 +143,31 @@ export function InvoiceListShell({ invoices }: InvoiceListShellProps) {
       toast({ variant: 'error', message: 'Could not download PDF' })
     } finally {
       setLoading(l => ({ ...l, [`pdf-${inv.id}`]: false }))
+    }
+  }
+
+  async function handlePaymentLink(inv: InvoiceWithClient) {
+    // If link already exists, open it directly
+    if (inv.stripe_payment_link) {
+      window.open(inv.stripe_payment_link, '_blank', 'noopener')
+      return
+    }
+    setLoading(l => ({ ...l, [`link-${inv.id}`]: true }))
+    try {
+      const res = await fetch(`/api/invoices/${inv.id}/pay`, { method: 'POST' })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(body.error ?? 'Failed to generate payment link')
+      }
+      const { paymentLink } = await res.json() as { paymentLink: string }
+      setLocalRows(rows => rows.map(r =>
+        r.id === inv.id ? { ...r, stripe_payment_link: paymentLink } : r
+      ))
+      window.open(paymentLink, '_blank', 'noopener')
+    } catch (err) {
+      toast({ variant: 'error', message: err instanceof Error ? err.message : 'Failed to generate payment link' })
+    } finally {
+      setLoading(l => ({ ...l, [`link-${inv.id}`]: false }))
     }
   }
 
@@ -272,9 +298,11 @@ export function InvoiceListShell({ invoices }: InvoiceListShellProps) {
                 key={inv.id}
                 inv={inv}
                 loading={loading}
+                stripeConnected={stripeConnected}
                 onSend={handleSend}
                 onPay={handleMarkPaid}
                 onDownload={handleDownload}
+                onPaymentLink={handlePaymentLink}
               />
             ))}
           </div>
@@ -289,17 +317,20 @@ export function InvoiceListShell({ invoices }: InvoiceListShellProps) {
 // ─────────────────────────────────────────
 
 interface RowProps {
-  inv:        InvoiceWithClient
-  loading:    Record<string, boolean>
-  onSend:     (inv: InvoiceWithClient) => void
-  onPay:      (inv: InvoiceWithClient) => void
-  onDownload: (inv: InvoiceWithClient) => void
+  inv:             InvoiceWithClient
+  loading:         Record<string, boolean>
+  stripeConnected: boolean
+  onSend:          (inv: InvoiceWithClient) => void
+  onPay:           (inv: InvoiceWithClient) => void
+  onDownload:      (inv: InvoiceWithClient) => void
+  onPaymentLink:   (inv: InvoiceWithClient) => void
 }
 
-function InvoiceTableRow({ inv, loading, onSend, onPay, onDownload }: RowProps) {
-  const isSending    = loading[`send-${inv.id}`]
-  const isPaying     = loading[`pay-${inv.id}`]
+function InvoiceTableRow({ inv, loading, stripeConnected, onSend, onPay, onDownload, onPaymentLink }: RowProps) {
+  const isSending     = loading[`send-${inv.id}`]
+  const isPaying      = loading[`pay-${inv.id}`]
   const isDownloading = loading[`pdf-${inv.id}`]
+  const isLinking     = loading[`link-${inv.id}`]
 
   return (
     <div className="grid grid-cols-[1fr_140px_120px_100px_180px] gap-4 px-5 py-3.5 items-center hover:bg-beige-50/50 transition-colors">
@@ -357,6 +388,19 @@ function InvoiceTableRow({ inv, loading, onSend, onPay, onDownload }: RowProps) 
           </ActionButton>
         )}
 
+        {/* Payment link — show for sent/overdue when Stripe connected */}
+        {stripeConnected && (inv.status === 'sent' || inv.status === 'overdue') && (
+          <ActionButton
+            onClick={() => onPaymentLink(inv)}
+            loading={isLinking}
+            title={inv.stripe_payment_link ? 'Open payment link' : 'Generate payment link'}
+            stripe
+          >
+            <CreditCard size={12} strokeWidth={1.75} />
+            {inv.stripe_payment_link ? 'Pay Link' : 'Get Link'}
+          </ActionButton>
+        )}
+
         {/* Download PDF */}
         <ActionButton
           onClick={() => onDownload(inv)}
@@ -371,12 +415,13 @@ function InvoiceTableRow({ inv, loading, onSend, onPay, onDownload }: RowProps) 
 }
 
 function ActionButton({
-  onClick, loading, title, accent = false, children,
+  onClick, loading, title, accent = false, stripe = false, children,
 }: {
   onClick:  () => void
   loading:  boolean
   title:    string
   accent?:  boolean
+  stripe?:  boolean
   children: React.ReactNode
 }) {
   return (
@@ -390,7 +435,9 @@ function ActionButton({
         'border transition-colors disabled:opacity-60 disabled:cursor-not-allowed',
         accent
           ? 'border-sage-200 bg-sage-50 text-sage-700 hover:bg-sage-100 hover:border-sage-300'
-          : 'border-beige-200 bg-white text-ink-mid hover:text-ink hover:border-beige-300',
+          : stripe
+            ? 'border-[#635BFF]/30 bg-[#635BFF]/5 text-[#635BFF] hover:bg-[#635BFF]/10 hover:border-[#635BFF]/50'
+            : 'border-beige-200 bg-white text-ink-mid hover:text-ink hover:border-beige-300',
       )}
     >
       {loading ? <Loader2 size={11} className="animate-spin" /> : children}

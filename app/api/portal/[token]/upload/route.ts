@@ -78,7 +78,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   // ── Verify docId belongs to this client ──
   const { data: taxDoc } = await admin
     .from('tax_documents')
-    .select('id, client_id')
+    .select('id, client_id, process_id')
     .eq('id', docId)
     .eq('client_id', client.id)
     .single()
@@ -135,6 +135,43 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       detail:     `Client uploaded ${file.name} via the portal.`,
       created_by: null,
     })
+
+  // ── Auto-advance the next pending file_uploaded step for this process ──
+  if (taxDoc.process_id) {
+    const { data: proc } = await admin
+      .from('processes')
+      .select('id, total_steps')
+      .eq('id', taxDoc.process_id)
+      .single()
+
+    if (proc) {
+      const { data: triggerStep } = await admin
+        .from('process_steps')
+        .select('id')
+        .eq('process_id', taxDoc.process_id)
+        .eq('trigger_event', 'file_uploaded')
+        .eq('status', 'pending')
+        .order('step_order')
+        .limit(1)
+        .maybeSingle()
+
+      if (triggerStep) {
+        await admin
+          .from('process_steps')
+          .update({ status: 'completed', completed_at: now })
+          .eq('id', triggerStep.id)
+
+        const { count } = await admin
+          .from('process_steps')
+          .select('id', { count: 'exact', head: true })
+          .eq('process_id', taxDoc.process_id)
+          .eq('status', 'completed')
+
+        const currentStep = Math.min((count ?? 0) + 1, proc.total_steps)
+        await admin.from('processes').update({ current_step: currentStep }).eq('id', taxDoc.process_id)
+      }
+    }
+  }
 
   return NextResponse.json({ uploaded: true, path: storagePath })
 }

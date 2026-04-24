@@ -15,7 +15,7 @@
  */
 
 import { cn } from '@/lib/utils'
-import type { ParseFirmResult } from '@/app/api/ai/parse-firm/route'
+import type { ParseFirmResult } from '@/lib/ai/parse-firm'
 
 // ─────────────────────────────────────────
 // Helpers

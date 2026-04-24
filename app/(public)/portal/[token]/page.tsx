@@ -59,12 +59,24 @@ export default async function ClientPortalPage({ params }: PageProps) {
   const engagementLetter = engagementLetters?.[0] ?? null
 
   // ── Fetch required tax documents (Step 3) ──
-  const { data: taxDocuments } = await admin
-    .from('tax_documents')
-    .select('*')
+  // Scoped to active processes only — avoids mixing docs from completed/archived processes
+  const { data: activeProcesses } = await admin
+    .from('processes')
+    .select('id')
     .eq('client_id', client.id)
-    .eq('required', true)
-    .order('document_type') as { data: TaxDocument[] | null }
+    .not('status', 'in', '("complete","archived")')
+
+  const processIds = activeProcesses?.map(p => p.id) ?? []
+  let taxDocuments: TaxDocument[] | null = []
+  if (processIds.length > 0) {
+    const { data: docs } = await admin
+      .from('tax_documents')
+      .select('*')
+      .in('process_id', processIds)
+      .eq('required', true)
+      .order('document_type') as { data: TaxDocument[] | null }
+    taxDocuments = docs
+  }
 
   // ── Already submitted screen — §13.5 ──
   if (client.portal_submitted_at) {

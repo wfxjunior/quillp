@@ -9,18 +9,21 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Copy, Check, ExternalLink, Plus, Send,
   ChevronRight,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
-import { PipelineTracker } from '@/components/ui/PipelineTracker'
-import { DocumentRow }     from '@/components/ui/DocumentRow'
-import { ChecklistRow }    from '@/components/ui/ChecklistRow'
-import { InvoiceRow }      from '@/components/ui/InvoiceRow'
-import { TimelineItem }    from '@/components/ui/TimelineItem'
-import { useToast }        from '@/components/ui/NotificationToast'
-import { cn }              from '@/lib/utils'
+import { PipelineTracker }    from '@/components/ui/PipelineTracker'
+import { DocumentRow }        from '@/components/ui/DocumentRow'
+import { ChecklistRow }       from '@/components/ui/ChecklistRow'
+import { InvoiceRow }         from '@/components/ui/InvoiceRow'
+import { TimelineItem }       from '@/components/ui/TimelineItem'
+import { SignNowRequiredModal } from '@/components/ui/SignNowRequiredModal'
+import { useToast }           from '@/components/ui/NotificationToast'
+import { useFirm }            from '@/lib/context/firm-context'
+import { cn }                 from '@/lib/utils'
 import type {
   Client, Document, TaxDocument, Invoice, TimelineEvent,
   PipelineStage, TaxDocumentStatus,
@@ -101,19 +104,27 @@ export function ClientDetail({
   appUrl,
 }: ClientDetailProps) {
   const { show: toast } = useToast()
+  const { firm }  = useFirm()
+  const router    = useRouter()
   const supabase  = createClient()
 
+  const signNowConnected = !!firm.signnow_token
+
   // ── State ──
-  const [activeTab,    setActiveTab]    = useState<TabKey>('flow')
-  const [client,       setClient]       = useState(initialClient)
-  const [documents]    = useState(initialDocuments)
-  const [taxDocs,      setTaxDocs]      = useState(initialTaxDocs)
-  const [invoices]     = useState(initialInvoices)
-  const [timeline,     setTimeline]     = useState(initialTimeline)
-  const [notes,        setNotes]        = useState(client.internal_notes ?? '')
-  const [copied,       setCopied]       = useState(false)
-  const [noteText,     setNoteText]     = useState('')
-  const [savingNote,   setSavingNote]   = useState(false)
+  const [activeTab,       setActiveTab]       = useState<TabKey>('flow')
+  const [client,          setClient]          = useState(initialClient)
+  const [documents,       setDocuments]       = useState(initialDocuments)
+  const [taxDocs,         setTaxDocs]         = useState(initialTaxDocs)
+  const [invoices,         setInvoices]        = useState(initialInvoices)
+  const [showCreateInvoice, setShowCreateInvoice] = useState(false)
+  const [timeline,        setTimeline]        = useState(initialTimeline)
+  const [notes,           setNotes]           = useState(client.internal_notes ?? '')
+  const [copied,          setCopied]          = useState(false)
+  const [noteText,        setNoteText]        = useState('')
+  const [savingNote,      setSavingNote]      = useState(false)
+  const [sendingDocId,    setSendingDocId]    = useState<string | null>(null)
+  const [remindingDocId,  setRemindingDocId]  = useState<string | null>(null)
+  const [showSignNowModal, setShowSignNowModal] = useState(false)
 
   // Debounce notes auto-save
   const notesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -270,15 +281,84 @@ export function ClientDetail({
     toast({ variant: 'success', message: 'Note logged.' })
   }
 
+  // ── Send portal invite / reminder ──
+
+  async function handleSendPortalInvite() {
+    const res = await fetch(`/api/clients/${client.id}/invite`, { method: 'POST' })
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}))
+      toast({ variant: 'error', message: (json as { error?: string }).error ?? 'Failed to send invite.' })
+      return
+    }
+    // Advance local stage to onboarding if we just sent the first invite
+    if (client.pipeline_stage === 'engaged') {
+      setClient(c => ({ ...c, pipeline_stage: 'onboarding' }))
+    }
+    toast({ variant: 'success', message: `Portal link sent to ${client.email}!` })
+  }
+
+  // ── Send document via SignNow ──
+
+  async function handleSendDocument(docId: string) {
+    if (!signNowConnected) {
+      setShowSignNowModal(true)
+      return
+    }
+    setSendingDocId(docId)
+    try {
+      const res = await fetch(`/api/documents/${docId}/send-signnow`, { method: 'POST' })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        toast({ variant: 'error', message: (json as { error?: string }).error ?? 'Failed to send document.' })
+        return
+      }
+      setDocuments(prev =>
+        prev.map(d => d.id === docId ? { ...d, status: 'awaiting_signature' as const } : d)
+      )
+      toast({ variant: 'success', message: 'Document sent for signature via SignNow.' })
+    } finally {
+      setSendingDocId(null)
+    }
+  }
+
+  // ── Remind signature via SignNow ──
+
+  async function handleRemindDocument(docId: string) {
+    if (!signNowConnected) { setShowSignNowModal(true); return }
+    setRemindingDocId(docId)
+    try {
+      const res = await fetch(`/api/documents/${docId}/remind`, { method: 'POST' })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        toast({ variant: 'error', message: (json as { error?: string }).error ?? 'Failed to send reminder.' })
+        return
+      }
+      toast({ variant: 'success', message: 'Signature reminder sent.' })
+    } finally {
+      setRemindingDocId(null)
+    }
+  }
+
+  // ── Archive client ──
+
+  async function handleArchiveClient() {
+    if (!confirm(`Archive ${client.name}? They will be removed from the active pipeline.`)) return
+    const res = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' })
+    if (!res.ok) {
+      toast({ variant: 'error', message: 'Failed to archive client.' })
+      return
+    }
+    router.push('/clients')
+  }
+
   // ── ActionBar primary action handler ──
 
   async function handlePrimaryAction() {
     const stage = client.pipeline_stage
     if (stage === 'engaged') {
-      handleCopyPortal()
-      toast({ variant: 'success', message: 'Portal link copied!' })
+      await handleSendPortalInvite()
     } else if (stage === 'onboarding') {
-      toast({ variant: 'success', message: 'Reminder sent.' })
+      await handleSendPortalInvite()
     } else if (stage === 'docs_received') {
       await handleStageChange('in_progress')
     } else if (stage === 'in_progress') {
@@ -286,7 +366,7 @@ export function ClientDetail({
     } else if (stage === 'review') {
       await handleStageChange('filed_invoiced')
     } else if (stage === 'filed_invoiced') {
-      toast({ variant: 'success', message: 'Client archiving coming soon.' })
+      await handleArchiveClient()
     }
   }
 
@@ -408,9 +488,9 @@ export function ClientDetail({
                   meta={formatDate(doc.created_at)}
                   action={
                     doc.status === 'draft'
-                      ? { label: 'Send', onClick: () => toast({ variant: 'success', message: 'Sending coming soon.' }), disabled: !hasEmail, disabledTitle: noEmailTip }
+                      ? { label: sendingDocId === doc.id ? 'Sending…' : 'Send', onClick: () => handleSendDocument(doc.id), disabled: !hasEmail || sendingDocId === doc.id, disabledTitle: !hasEmail ? noEmailTip : undefined }
                       : doc.status === 'sent' || doc.status === 'awaiting_signature'
-                      ? { label: 'Remind', onClick: () => toast({ variant: 'success', message: 'Reminder sent.' }), disabled: !hasEmail, disabledTitle: noEmailTip }
+                      ? { label: remindingDocId === doc.id ? 'Sending…' : 'Remind', onClick: () => handleRemindDocument(doc.id), disabled: !hasEmail || remindingDocId === doc.id, disabledTitle: !hasEmail ? noEmailTip : undefined }
                       : undefined
                   }
                 />
@@ -553,9 +633,9 @@ export function ClientDetail({
                 meta={formatDate(doc.created_at)}
                 action={
                   doc.status === 'draft'
-                    ? { label: 'Send', onClick: () => toast({ variant: 'success', message: 'Sending coming soon.' }), disabled: !hasEmail, disabledTitle: noEmailTip }
+                    ? { label: sendingDocId === doc.id ? 'Sending…' : 'Send', onClick: () => handleSendDocument(doc.id), disabled: !hasEmail || sendingDocId === doc.id, disabledTitle: !hasEmail ? noEmailTip : undefined }
                     : doc.status === 'sent' || doc.status === 'awaiting_signature'
-                    ? { label: 'Remind', onClick: () => toast({ variant: 'success', message: 'Reminder sent.' }), disabled: !hasEmail, disabledTitle: noEmailTip }
+                    ? { label: 'Remind', onClick: () => toast({ variant: 'info', message: 'Signature reminder coming soon.' }), disabled: !hasEmail, disabledTitle: noEmailTip }
                     : undefined
                 }
               />
@@ -607,7 +687,7 @@ export function ClientDetail({
             </p>
             <button
               type="button"
-              onClick={() => toast({ variant: 'success', message: 'Invoice creation coming soon.' })}
+              onClick={() => setShowCreateInvoice(true)}
               className={cn(
                 'inline-flex items-center gap-1.5 h-7 px-3 text-[12px] font-[450]',
                 'bg-sage-400 text-white rounded-[6px]',
@@ -705,6 +785,24 @@ export function ClientDetail({
         </div>
       )}
 
+      {showCreateInvoice && (
+        <CreateInvoiceModal
+          clientId={client.id}
+          clientName={client.name}
+          defaultAmount={client.fee_amount}
+          onClose={() => setShowCreateInvoice(false)}
+          onCreated={inv => {
+            setInvoices(prev => [inv, ...prev])
+            setShowCreateInvoice(false)
+            toast({ variant: 'success', message: `Invoice ${inv.invoice_number} created.` })
+          }}
+        />
+      )}
+
+      {showSignNowModal && (
+        <SignNowRequiredModal onClose={() => setShowSignNowModal(false)} />
+      )}
+
       {/* ── Fixed ActionBar ── */}
       <ActionBar
         hint={stageConfig.hint}
@@ -721,7 +819,7 @@ export function ClientDetail({
             ? () => {
                 const engagementDoc = documents.find(d => d.type === 'engagement_letter')
                 if (engagementDoc) {
-                  toast({ variant: 'success', message: 'Sending coming soon.' })
+                  handleSendDocument(engagementDoc.id)
                 } else {
                   toast({ variant: 'error', message: 'No engagement letter found. Generate one first.' })
                 }
@@ -870,3 +968,139 @@ function ActionBar({
     </div>
   )
 }
+
+// ─────────────────────────────────────────
+// CreateInvoiceModal
+// ─────────────────────────────────────────
+
+function CreateInvoiceModal({
+  clientId,
+  clientName,
+  defaultAmount,
+  onClose,
+  onCreated,
+}: {
+  clientId:      string
+  clientName:    string
+  defaultAmount: number | null
+  onClose:       () => void
+  onCreated:     (invoice: Invoice) => void
+}) {
+  const today = new Date()
+  const defaultDue = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate())
+    .toISOString().slice(0, 10)
+
+  const [description, setDescription] = useState('')
+  const [amount,      setAmount]      = useState(defaultAmount ? String(defaultAmount) : '')
+  const [dueDate,     setDueDate]     = useState(defaultDue)
+  const [saving,      setSaving]      = useState(false)
+  const [error,       setError]       = useState<string | null>(null)
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!description.trim() || !amount || !dueDate) return
+    const parsed = parseFloat(amount)
+    if (isNaN(parsed) || parsed <= 0) { setError('Enter a valid amount.'); return }
+    setSaving(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/invoices', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ clientId, description: description.trim(), amount: parsed, dueDate }),
+      })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        setError((json as { error?: string }).error ?? 'Failed to create invoice.')
+        return
+      }
+      const { invoice } = await res.json() as { invoice: Invoice }
+      onCreated(invoice)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/30 backdrop-blur-sm px-4"
+      onClick={e => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div className="bg-white rounded-[18px] shadow-[0_20px_60px_rgba(26,25,22,0.2)] w-full max-w-[420px] overflow-hidden">
+        <div className="px-6 py-5 border-b border-beige-100">
+          <p className="text-[15px] font-[500] text-ink">New Invoice</p>
+          <p className="text-[12.5px] text-ink-soft font-light mt-0.5">{clientName}</p>
+        </div>
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-4">
+          <ModalField label="Description" htmlFor="inv-desc">
+            <input
+              id="inv-desc"
+              type="text"
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="e.g. Tax preparation — 2024"
+              required
+              className={modalInputCls}
+            />
+          </ModalField>
+          <div className="grid grid-cols-2 gap-3">
+            <ModalField label="Amount ($)" htmlFor="inv-amount">
+              <input
+                id="inv-amount"
+                type="number"
+                min={1}
+                step={1}
+                value={amount}
+                onChange={e => setAmount(e.target.value)}
+                placeholder="0"
+                required
+                className={modalInputCls}
+              />
+            </ModalField>
+            <ModalField label="Due Date" htmlFor="inv-due">
+              <input
+                id="inv-due"
+                type="date"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+                required
+                className={modalInputCls}
+              />
+            </ModalField>
+          </div>
+          {error && <p className="text-[12px] text-red-500">{error}</p>}
+          <div className="flex items-center justify-end gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onClose}
+              className="h-9 px-4 text-[13px] font-[450] text-ink-mid border border-beige-300 rounded-[9px] hover:border-beige-400 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={saving || !description.trim() || !amount || !dueDate}
+              className="h-9 px-5 text-[13px] font-[450] bg-ink text-white rounded-[9px] hover:bg-ink/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? 'Creating…' : 'Create Invoice'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function ModalField({ label, htmlFor, children }: { label: string; htmlFor: string; children: React.ReactNode }) {
+  return (
+    <div>
+      <label htmlFor={htmlFor} className="block text-[12px] font-[450] text-ink-mid mb-1.5">{label}</label>
+      {children}
+    </div>
+  )
+}
+
+const modalInputCls = cn(
+  'w-full h-10 px-3 text-[13.5px] text-ink bg-white border border-beige-200 rounded-[10px] outline-none',
+  'focus:ring-1 focus:ring-ink/20 focus:border-ink/30 transition-colors',
+)

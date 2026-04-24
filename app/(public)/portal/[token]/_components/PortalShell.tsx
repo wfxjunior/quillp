@@ -4,7 +4,7 @@
  * PortalShell — client component that coordinates the 4-step portal flow.
  *
  * Steps:
- *   1. Sign  — Engagement letter / DocuSign  (skipped if no letter)
+ *   1. Sign  — Engagement letter / SignNow  (skipped if no letter)
  *   2. Info  — Personal information form
  *   3. Upload — Required tax documents
  *   4. Review — Summary + submit

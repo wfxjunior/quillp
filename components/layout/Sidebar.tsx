@@ -21,6 +21,8 @@ import { usePathname, useRouter } from 'next/navigation'
 import {
   LayoutDashboard,
   Users,
+  Layers,
+  Workflow,
   FileText,
   CalendarDays,
   Receipt,
@@ -54,15 +56,17 @@ const NAV_SECTIONS: NavSection[] = [
     label: 'Workspace',
     items: [
       { label: 'Dashboard',  href: '/dashboard',  icon: LayoutDashboard },
-      { label: 'Clients',    href: '/clients',    icon: Users,         matchPrefix: true },
-      { label: 'Documents',  href: '/documents',  icon: FileText,      matchPrefix: true },
+      { label: 'Clients',    href: '/clients',    icon: Users,      matchPrefix: true },
+      { label: 'Services',   href: '/services',   icon: Layers,     matchPrefix: true },
+      { label: 'Processes',  href: '/processes',  icon: Workflow,   matchPrefix: true },
+      { label: 'Documents',  href: '/documents',  icon: FileText,   matchPrefix: true },
       { label: 'Deadlines',  href: '/deadlines',  icon: CalendarDays },
     ],
   },
   {
     label: 'Billing',
     items: [
-      { label: 'Invoices',   href: '/invoices',   icon: Receipt,       matchPrefix: true },
+      { label: 'Invoices',   href: '/invoices',   icon: Receipt,    matchPrefix: true },
     ],
   },
 ]

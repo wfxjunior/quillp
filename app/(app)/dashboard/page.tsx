@@ -333,7 +333,7 @@ export default async function DashboardPage() {
         <MetricCard
           label="Pending signatures"
           value={pendingSigsCount}
-          subLabel={pendingSigsCount === 1 ? '1 awaiting DocuSign' : `${pendingSigsCount} awaiting DocuSign`}
+          subLabel={pendingSigsCount === 1 ? '1 awaiting SignNow' : `${pendingSigsCount} awaiting SignNow`}
           tag={pendingSigsCount > 0 ? { label: 'Action needed', variant: 'amber' } : undefined}
         />
         <MetricCard

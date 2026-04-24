@@ -88,7 +88,7 @@ const RESULTS = [
   '3 onboarding portals created',
   'Deadline calendar configured',
   'Invoice templates ready',
-  'DocuSign integration active',
+  'SignNow integration active',
 ]
 
 function Terminal() {
@@ -501,7 +501,7 @@ export default function LandingPage() {
             <div className="flex items-start gap-3 mt-[18px] pt-4 border-t border-beige-100 text-[12px] text-ink-soft flex-wrap">
               <span className="pt-1 whitespace-nowrap">Quilp generates →</span>
               <div className="flex flex-wrap gap-1.5">
-                {['4 engagement letters','3 onboarding portals','Full IRS deadline calendar','Invoice templates','Tax doc checklist — 1040','DocuSign integration'].map(t => (
+                {['4 engagement letters','3 onboarding portals','Full IRS deadline calendar','Invoice templates','Tax doc checklist — 1040','SignNow integration'].map(t => (
                   <span key={t} className="text-[11px] font-[500] px-[14px] py-1 rounded-full bg-sage-50 text-sage-600 border border-sage-200">{t}</span>
                 ))}
               </div>
@@ -557,7 +557,7 @@ export default function LandingPage() {
                   ['Practice memory',            'learns your clause preferences, formatting, and fee structures. Every edit makes the next generation better.',        0  ],
                   ['State-aware',                'compliance language built for your jurisdiction automatically. Florida, Texas, New York — each one is different.',    80 ],
                   ['AICPA-aligned',              'every engagement letter follows professional standards by default. No legal review required.',                        160],
-                  ['DocuSign + Stripe built-in', 'send for signature and collect payment without leaving Quilp. One click.',                                           240],
+                  ['SignNow + Stripe built-in', 'send for signature and collect payment without leaving Quilp. One click.',                                           240],
                 ].map(([strong, rest, delay]) => (
                   <div key={strong as string} className="rev-u flex items-start gap-3 text-[14px] text-ink-mid leading-[1.7]" style={d(delay as number)}>
                     <div className="w-5 h-5 rounded-full bg-sage-50 border border-sage-200 flex items-center justify-center flex-shrink-0 mt-[2px]"><CheckIcon /></div>
@@ -599,7 +599,7 @@ export default function LandingPage() {
               <div className="h-[6px]" />
               <div className="flex gap-[14px]">
                 <span className="text-white/[0.18] min-w-[18px] text-right text-[11px] select-none">14</span>
-                <span><span className="text-beige-400">await</span><span className="text-white"> doc.send({'{ via: '}</span><span className="text-sage-200">&apos;docusign&apos;</span><span className="text-white"> {'}'})</span></span>
+                <span><span className="text-beige-400">await</span><span className="text-white"> doc.send({'{ via: '}</span><span className="text-sage-200">&apos;signnow&apos;</span><span className="text-white"> {'}'})</span></span>
               </div>
               <div className="flex gap-[14px]">
                 <span className="text-white/[0.18] min-w-[18px] text-right text-[11px] select-none">15</span>
@@ -644,7 +644,7 @@ export default function LandingPage() {
               <p className="text-[13px] text-ink-mid leading-[1.65]">For solo professionals with up to 50 active clients.</p>
               <div className="h-px bg-beige-200" />
               <div className="flex flex-col gap-[11px] flex-1">
-                {['Document generator — all types','Client onboarding portal','Deadline dashboard','10 DocuSign sends/month','Email support'].map(f => (
+                {['Document generator — all types','Client onboarding portal','Deadline dashboard','10 SignNow sends/month','Email support'].map(f => (
                   <div key={f} className="flex items-start gap-2.5 text-[13px] text-ink-mid">
                     <div className="w-[17px] h-[17px] rounded-full bg-sage-50 border border-sage-200 flex items-center justify-center flex-shrink-0 mt-[1px]"><CheckIcon /></div>{f}
                   </div>
@@ -664,7 +664,7 @@ export default function LandingPage() {
               <p className="text-[13px] text-white/[0.42] leading-[1.65]">For firms with up to 3 staff and unlimited clients.</p>
               <div className="h-px bg-white/10" />
               <div className="flex flex-col gap-[11px] flex-1">
-                {['Everything in Solo','Unlimited clients & DocuSign','Billing & invoicing (Stripe)','Practice memory AI','Priority support + onboarding'].map(f => (
+                {['Everything in Solo','Unlimited clients & SignNow','Billing & invoicing (Stripe)','Practice memory AI','Priority support + onboarding'].map(f => (
                   <div key={f} className="flex items-start gap-2.5 text-[13px] text-white/50">
                     <div className="w-[17px] h-[17px] rounded-full bg-sage-400/[0.12] border border-sage-400/[0.25] flex items-center justify-center flex-shrink-0 mt-[1px]"><CheckIcon stroke="#6FA664" /></div>{f}
                   </div>

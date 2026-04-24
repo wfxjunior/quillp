@@ -61,7 +61,7 @@ export interface Firm {
   client_types: string[]
   description_raw: string | null
   description_parsed: FirmDescriptionParsed | null
-  docusign_token: string | null   // encrypted at rest
+  signnow_token: string | null   // encrypted at rest
   stripe_account_id: string | null
   subscription_plan: SubscriptionPlan
   subscription_status: SubscriptionStatus
@@ -140,7 +140,7 @@ export interface Document {
   title: string
   content_html: string | null
   pdf_url: string | null
-  docusign_envelope_id: string | null
+  signnow_document_id: string | null
   signed_at: string | null
   service_type: string | null
   fee_amount: number | null
@@ -181,6 +181,7 @@ export type TaxDocumentUploadedBy = 'client' | 'cpa'
 export interface TaxDocument {
   id: string
   client_id: string
+  process_id: string | null       // scopes document to a specific process
   document_type: string           // e.g. "W-2", "1099-INT", "K-1", "1098"
   required: boolean
   status: TaxDocumentStatus
@@ -270,6 +271,92 @@ export interface Notification {
   read: boolean
   link: string | null
   created_at: string
+}
+
+// ─────────────────────────────────────────
+// 11. SERVICE
+// ─────────────────────────────────────────
+export type PriceType = 'flat_fee' | 'hourly' | 'retainer'
+
+export type TriggerEvent = 'manual' | 'document_signed' | 'portal_submitted' | 'file_uploaded'
+
+export interface ServiceStep {
+  order:          number
+  title:          string
+  description:    string
+  assignee:       'client' | 'cpa' | 'system'
+  trigger_event?: TriggerEvent
+}
+
+export interface ServiceDocument {
+  label:       string
+  description: string
+  required:    boolean
+}
+
+export interface Service {
+  id:                 string
+  firm_id:            string
+  name:               string
+  description:        string | null
+  price:              number | null
+  price_type:         PriceType | null
+  estimated_weeks:    number | null
+  steps:              ServiceStep[]
+  required_documents: ServiceDocument[]
+  state_rules:        Record<string, unknown>
+  is_active:          boolean
+  created_at:         string
+}
+
+// ─────────────────────────────────────────
+// 12. PROCESS
+// ─────────────────────────────────────────
+export type ProcessStatus =
+  | 'pending'
+  | 'engaged'
+  | 'collecting'
+  | 'in_review'
+  | 'client_review'
+  | 'filing'
+  | 'complete'
+  | 'archived'
+
+export interface Process {
+  id:           string
+  firm_id:      string
+  client_id:    string
+  service_id:   string
+  title:        string
+  status:       ProcessStatus
+  current_step: number
+  total_steps:  number
+  started_at:   string
+  completed_at: string | null
+  due_date:     string | null
+  notes:        string | null
+  created_at:   string
+}
+
+// ─────────────────────────────────────────
+// 13. PROCESS STEP
+// ─────────────────────────────────────────
+export type StepStatus   = 'pending' | 'in_progress' | 'completed' | 'blocked'
+export type StepAssignee = 'client' | 'cpa' | 'system'
+
+export interface ProcessStep {
+  id:            string
+  process_id:    string
+  firm_id:       string
+  step_order:    number
+  title:         string
+  description:   string | null
+  status:        StepStatus
+  assignee:      StepAssignee
+  trigger_event: TriggerEvent
+  document_id:   string | null
+  completed_at:  string | null
+  created_at:    string
 }
 
 // ══════════════════════════════════════════════════════════════════

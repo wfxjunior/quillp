@@ -14,14 +14,15 @@ Use the `.env.example` file as the reference list.
 - [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` **[BLOCKING]**
 - [ ] `SUPABASE_SERVICE_ROLE_KEY` **[BLOCKING]** — server-only; never expose client-side
 - [ ] `OPENAI_API_KEY` **[BLOCKING]** — required for document generation and firm parsing
-- [ ] `DOCUSIGN_INTEGRATION_KEY` — required for e-signature flow
-- [ ] `DOCUSIGN_SECRET` — required for DocuSign OAuth
-- [ ] `DOCUSIGN_REDIRECT_URI` — must match the registered URI in DocuSign exactly
-- [ ] `DOCUSIGN_BASE_URL` — use `https://www.docusign.net` for production
+- [ ] `SIGNNOW_CLIENT_ID` — required for e-signature flow
+- [ ] `SIGNNOW_CLIENT_SECRET` — required for SignNow OAuth
+- [ ] `SIGNNOW_REDIRECT_URI` — must match the registered URI in SignNow exactly (`/api/auth/signnow/callback`)
+- [ ] `SIGNNOW_ENV` — set to `production` for live deployments
+- [ ] `SIGNNOW_WEBHOOK_SECRET` — HMAC secret for webhook signature verification
 - [ ] `RESEND_API_KEY` **[BLOCKING]** — required for invoice and deadline emails
 - [ ] `RESEND_FROM_EMAIL` **[BLOCKING]** — must be a verified domain in Resend
 - [ ] `NEXT_PUBLIC_APP_URL` **[BLOCKING]** — e.g. `https://app.quilp.io`
-- [ ] `ENCRYPTION_KEY` **[BLOCKING]** — 64-char hex; required for DocuSign token storage
+- [ ] `ENCRYPTION_KEY` **[BLOCKING]** — 64-char hex; required for SignNow token storage
 - [ ] `CRON_SECRET` **[BLOCKING]** — secures `/api/deadlines/alerts`
 - [ ] `STRIPE_SECRET_KEY` — Phase 2; set before enabling billing
 - [ ] `STRIPE_WEBHOOK_SECRET` — Phase 2
@@ -96,14 +97,14 @@ Critical indexes to verify:
 
 ---
 
-## 3. DocuSign
+## 3. SignNow
 
-- [ ] App registered and approved in DocuSign developer portal (for production, submit for go-live)
-- [ ] OAuth redirect URI registered: `https://app.quilp.io/api/docusign/callback`
-- [ ] Webhook (Connect) URL configured in DocuSign dashboard:
-  `https://app.quilp.io/api/docusign/webhook`
-- [ ] Webhook events selected: `envelope-completed`, `envelope-declined`, `envelope-voided`
-- [ ] HMAC secret for webhook validation configured in DocuSign Connect and matches app secret
+- [ ] App registered in SignNow developer console; switch to production credentials before go-live
+- [ ] OAuth redirect URI registered: `https://app.quilp.io/api/auth/signnow/callback`
+- [ ] Webhook URL configured in SignNow dashboard:
+  `https://app.quilp.io/api/webhooks/signnow`
+- [ ] Webhook event selected: `document.complete`
+- [ ] HMAC-SHA256 secret for webhook validation set in SignNow and matches `SIGNNOW_WEBHOOK_SECRET`
 
 ---
 
@@ -157,7 +158,7 @@ Run these manually after deploying to production:
 - [ ] Invoice creation generates PDF and sends email
 - [ ] Portal link opens at `app.quilp.io/portal/<token>`
 - [ ] Portal submission marks `portal_submitted_at` on the client row
-- [ ] DocuSign connect flow completes (OAuth round-trip)
+- [ ] SignNow connect flow completes (OAuth round-trip)
 - [ ] Deadline cron fires and creates notifications (test with a manual POST)
 - [ ] Paywall overlay shown when trial expires (test with a past-due subscription row)
 - [ ] Cross-firm data access blocked (attempt to fetch another firm's client — expect 403/404)

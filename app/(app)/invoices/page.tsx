@@ -28,6 +28,15 @@ export default async function InvoicesPage() {
 
   if (!userRow?.firm_id) redirect('/onboarding/step-1')
 
+  // Fetch firm Stripe connection status
+  const { data: firm } = await supabase
+    .from('firms')
+    .select('stripe_account_id')
+    .eq('id', userRow.firm_id)
+    .single()
+
+  const stripeConnected = !!(firm as { stripe_account_id?: string | null } | null)?.stripe_account_id
+
   // Fetch invoices with client name + email joined
   const { data: rawInvoices } = await supabase
     .from('invoices')
@@ -49,6 +58,6 @@ export default async function InvoicesPage() {
   })
 
   return (
-    <InvoiceListShell invoices={invoices} />
+    <InvoiceListShell invoices={invoices} stripeConnected={stripeConnected} />
   )
 }

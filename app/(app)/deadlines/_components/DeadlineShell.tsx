@@ -2,13 +2,14 @@
 
 /**
  * DeadlineShell — toggles between List and Calendar views.
- * Also owns the client detail side panel (slide-over).
+ * Owns local deadlines state so rows can be updated optimistically.
  */
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { List, CalendarDays } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useToast } from '@/components/ui/NotificationToast'
 import { DeadlineListView }     from './DeadlineListView'
 import { DeadlineCalendarView } from './DeadlineCalendarView'
 import type { DeadlineWithClient } from '../page'
@@ -19,13 +20,52 @@ interface DeadlineShellProps {
 
 type View = 'list' | 'calendar'
 
-export function DeadlineShell({ deadlines }: DeadlineShellProps) {
-  const router   = useRouter()
-  const [view, setView] = useState<View>('list')
+export function DeadlineShell({ deadlines: initialDeadlines }: DeadlineShellProps) {
+  const router = useRouter()
+  const { show: toast } = useToast()
+  const [view,      setView]      = useState<View>('list')
+  const [deadlines, setDeadlines] = useState<DeadlineWithClient[]>(initialDeadlines)
+  const [marking,   setMarking]   = useState<Record<string, boolean>>({})
 
   function openClient(clientId: string) {
     router.push(`/clients/${clientId}`)
   }
+
+  async function handleMark(
+    id:                string,
+    status:            'filed' | 'extended',
+    extension_due_date?: string,
+  ) {
+    setMarking(m => ({ ...m, [id]: true }))
+    try {
+      const res = await fetch(`/api/deadlines/${id}`, {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ status, extension_due_date }),
+      })
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({})) as { error?: string }
+        toast({ variant: 'error', message: json.error ?? 'Update failed.' })
+        return
+      }
+
+      setDeadlines(prev => prev.map(d =>
+        d.id === id
+          ? { ...d, status, extension_due_date: extension_due_date ?? d.extension_due_date }
+          : d,
+      ))
+
+      toast({
+        variant: 'success',
+        message: status === 'filed' ? 'Deadline marked as filed.' : 'Deadline marked as extended.',
+      })
+    } finally {
+      setMarking(m => ({ ...m, [id]: false }))
+    }
+  }
+
+  const pendingCount = deadlines.filter(d => d.status === 'pending').length
 
   return (
     <div className="px-6 py-6 max-w-[1000px] mx-auto">
@@ -37,8 +77,7 @@ export function DeadlineShell({ deadlines }: DeadlineShellProps) {
             Deadlines
           </h1>
           <p className="text-[13.5px] text-ink-soft font-light mt-1">
-            {deadlines.filter(d => d.status === 'pending').length} pending filing
-            {deadlines.filter(d => d.status === 'pending').length !== 1 ? 's' : ''}
+            {pendingCount} pending filing{pendingCount !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -61,7 +100,12 @@ export function DeadlineShell({ deadlines }: DeadlineShellProps) {
 
       {/* ── View content ── */}
       {view === 'list' ? (
-        <DeadlineListView deadlines={deadlines} onSelectClient={openClient} />
+        <DeadlineListView
+          deadlines={deadlines}
+          marking={marking}
+          onSelectClient={openClient}
+          onMark={handleMark}
+        />
       ) : (
         <DeadlineCalendarView deadlines={deadlines} onSelectClient={openClient} />
       )}

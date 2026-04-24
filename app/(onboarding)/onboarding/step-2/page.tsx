@@ -23,7 +23,7 @@ import {
 import { PrimaryButton } from '@/components/buttons/PrimaryButton'
 import { GhostButton } from '@/components/buttons/GhostButton'
 import { cn } from '@/lib/utils'
-import type { ParseFirmResult } from '@/app/api/ai/parse-firm/route'
+import type { ParseFirmResult } from '@/lib/ai/parse-firm'
 
 const PLACEHOLDER =
   `I run a solo CPA practice in Tampa, Florida. I do individual 1040s and S-Corps for small businesses. Flat-fee model. About 40 clients.`

@@ -58,7 +58,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       client_types: firmRow.client_types ?? [],
       description_raw: firmRow.description_raw ?? null,
       description_parsed: firmRow.description_parsed ?? null,
-      docusign_token: firmRow.docusign_token ?? null,
+      signnow_token: firmRow.signnow_token ?? null,
       stripe_account_id: firmRow.stripe_account_id ?? null,
       subscription_plan: firmRow.subscription_plan,
       subscription_status: firmRow.subscription_status,

@@ -20,7 +20,7 @@ import { SageButton }   from '@/components/buttons/SageButton'
 import { GhostButton }  from '@/components/buttons/GhostButton'
 import { useToast }     from '@/components/ui/NotificationToast'
 import { useFirm }      from '@/lib/context/firm-context'
-import { DocuSignRequiredModal } from '@/components/ui/DocuSignRequiredModal'
+import { SignNowRequiredModal } from '@/components/ui/SignNowRequiredModal'
 import { SERVICE_OPTIONS } from '@/lib/onboarding/service-mappings'
 import { cn } from '@/lib/utils'
 import type { DocumentType } from '@/types'
@@ -126,8 +126,8 @@ export default function DocumentGeneratePage() {
   const { show: toast } = useToast()
   const { firm } = useFirm()
   const supabase = createClient()
-  const docuSignConnected = !!firm.docusign_token
-  const [showDocuSignModal, setShowDocuSignModal] = useState(false)
+  const signNowConnected = !!firm.signnow_token
+  const [showSignNowModal, setShowSignNowModal] = useState(false)
 
   // ── Clients ──
   const [clients,        setClients]        = useState<ClientOption[]>([])
@@ -147,10 +147,12 @@ export default function DocumentGeneratePage() {
   })
 
   // ── Generation state ──
-  const [isGenerating,   setIsGenerating]   = useState(false)
-  const [hasGenerated,   setHasGenerated]   = useState(false)
-  const [generatedDocId, setGeneratedDocId] = useState<string | null>(null)
-  const [genError,       setGenError]       = useState<string | null>(null)
+  const [isGenerating,    setIsGenerating]    = useState(false)
+  const [hasGenerated,    setHasGenerated]    = useState(false)
+  const [generatedDocId,  setGeneratedDocId]  = useState<string | null>(null)
+  const [genError,        setGenError]        = useState<string | null>(null)
+  const [downloadingPdf,  setDownloadingPdf]  = useState(false)
+  const [sendingSignNow,  setSendingSignNow]  = useState(false)
 
   // ── Preview (ref-based for zero-render token updates) ──
   const accumulatedRef = useRef('')
@@ -311,6 +313,43 @@ export default function DocumentGeneratePage() {
     if (!generatedDocId || !form.clientId) return
     toast({ variant: 'success', message: 'Document saved to client.' })
     router.push(`/clients/${form.clientId}`)
+  }
+
+  async function handleDownloadPdf() {
+    if (!generatedDocId) return
+    setDownloadingPdf(true)
+    try {
+      const res = await fetch(`/api/documents/${generatedDocId}/pdf`, { method: 'POST' })
+      if (!res.ok) {
+        toast({ variant: 'error', message: 'PDF generation failed. Try again.' })
+        return
+      }
+      const { signedUrl } = await res.json() as { signedUrl: string | null }
+      if (signedUrl) {
+        window.open(signedUrl, '_blank', 'noopener')
+      } else {
+        toast({ variant: 'error', message: 'Could not retrieve PDF URL.' })
+      }
+    } finally {
+      setDownloadingPdf(false)
+    }
+  }
+
+  async function handleSendViaSignNow() {
+    if (!generatedDocId) return
+    if (!signNowConnected) { setShowSignNowModal(true); return }
+    setSendingSignNow(true)
+    try {
+      const res = await fetch(`/api/documents/${generatedDocId}/send-signnow`, { method: 'POST' })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        toast({ variant: 'error', message: (json as { error?: string }).error ?? 'Failed to send document.' })
+        return
+      }
+      toast({ variant: 'success', message: 'Document sent for signature via SignNow.' })
+    } finally {
+      setSendingSignNow(false)
+    }
   }
 
   // ─────────────────────────────────────────
@@ -528,9 +567,9 @@ export default function DocumentGeneratePage() {
         </div>
       </div>
 
-      {/* DocuSign not-connected modal */}
-      {showDocuSignModal && (
-        <DocuSignRequiredModal onClose={() => setShowDocuSignModal(false)} />
+      {/* SignNow not-connected modal */}
+      {showSignNowModal && (
+        <SignNowRequiredModal onClose={() => setShowSignNowModal(false)} />
       )}
 
       {/* ══ RIGHT PANEL — Preview ══════════════════════════════════════ */}
@@ -559,20 +598,19 @@ export default function DocumentGeneratePage() {
             <div className="flex items-center gap-1.5">
               <GhostButton
                 size="sm"
-                onClick={() => toast({ variant: 'success', message: 'PDF download coming soon.' })}
+                onClick={handleDownloadPdf}
+                disabled={downloadingPdf || !generatedDocId}
               >
                 <Download size={12} strokeWidth={2} />
-                Download PDF
+                {downloadingPdf ? 'Generating…' : 'Download PDF'}
               </GhostButton>
               <GhostButton
                 size="sm"
-                onClick={() => {
-                  if (!docuSignConnected) { setShowDocuSignModal(true); return }
-                  toast({ variant: 'info', message: 'DocuSign send coming soon.' })
-                }}
+                onClick={handleSendViaSignNow}
+                disabled={sendingSignNow || !generatedDocId}
               >
                 <Send size={12} strokeWidth={2} />
-                Send via DocuSign
+                {sendingSignNow ? 'Sending…' : 'Send via SignNow'}
               </GhostButton>
               <SageButton size="sm" onClick={handleSaveToClient} disabled={!generatedDocId}>
                 <Save size={12} strokeWidth={2} />

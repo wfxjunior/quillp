@@ -4,9 +4,11 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Search } from 'lucide-react'
-import { DocumentRow } from '@/components/ui/DocumentRow'
-import { useToast }    from '@/components/ui/NotificationToast'
-import { cn }          from '@/lib/utils'
+import { DocumentRow }        from '@/components/ui/DocumentRow'
+import { SignNowRequiredModal } from '@/components/ui/SignNowRequiredModal'
+import { useToast }           from '@/components/ui/NotificationToast'
+import { useFirm }            from '@/lib/context/firm-context'
+import { cn }                 from '@/lib/utils'
 import type { DocumentType, DocumentStatus } from '@/types'
 import type { DocumentWithClient } from '../page'
 
@@ -51,11 +53,36 @@ interface Props {
   documents: DocumentWithClient[]
 }
 
-export function DocumentsShell({ documents }: Props) {
+export function DocumentsShell({ documents: initialDocuments }: Props) {
   const router = useRouter()
   const { show: toast } = useToast()
-  const [filter, setFilter]   = useState<FilterKey>('all')
-  const [search, setSearch]   = useState('')
+  const { firm } = useFirm()
+  const signNowConnected = !!firm.signnow_token
+
+  const [documents,        setDocuments]        = useState(initialDocuments)
+  const [filter,           setFilter]           = useState<FilterKey>('all')
+  const [search,           setSearch]           = useState('')
+  const [sendingDocId,     setSendingDocId]     = useState<string | null>(null)
+  const [showSignNowModal, setShowSignNowModal] = useState(false)
+
+  async function handleSendDocument(docId: string) {
+    if (!signNowConnected) { setShowSignNowModal(true); return }
+    setSendingDocId(docId)
+    try {
+      const res = await fetch(`/api/documents/${docId}/send-signnow`, { method: 'POST' })
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}))
+        toast({ variant: 'error', message: (json as { error?: string }).error ?? 'Failed to send document.' })
+        return
+      }
+      setDocuments(prev =>
+        prev.map(d => d.id === docId ? { ...d, status: 'awaiting_signature' as DocumentStatus } : d)
+      )
+      toast({ variant: 'success', message: 'Document sent for signature via SignNow.' })
+    } finally {
+      setSendingDocId(null)
+    }
+  }
 
   const filtered = useMemo(() => {
     let list = documents
@@ -95,6 +122,8 @@ export function DocumentsShell({ documents }: Props) {
   }
 
   return (
+    <>
+    {showSignNowModal && <SignNowRequiredModal onClose={() => setShowSignNowModal(false)} />}
     <div className="bg-white border-[0.5px] border-beige-200 rounded-[16px] shadow-card overflow-hidden">
       {/* Filter + search bar */}
       <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-beige-100">
@@ -184,13 +213,11 @@ export function DocumentsShell({ documents }: Props) {
               {doc.status === 'draft' && (
                 <button
                   type="button"
-                  onClick={e => {
-                    e.stopPropagation()
-                    toast({ variant: 'info', message: 'Sending coming soon.' })
-                  }}
-                  className="h-7 px-2.5 text-[11.5px] font-[450] border-[0.5px] border-beige-300 rounded-[6px] text-ink-mid hover:text-ink hover:border-beige-400 bg-white hover:bg-beige-50 transition-colors"
+                  disabled={sendingDocId === doc.id}
+                  onClick={e => { e.stopPropagation(); handleSendDocument(doc.id) }}
+                  className="h-7 px-2.5 text-[11.5px] font-[450] border-[0.5px] border-beige-300 rounded-[6px] text-ink-mid hover:text-ink hover:border-beige-400 bg-white hover:bg-beige-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Send
+                  {sendingDocId === doc.id ? 'Sending…' : 'Send'}
                 </button>
               )}
             </div>
@@ -207,5 +234,6 @@ export function DocumentsShell({ documents }: Props) {
         </div>
       )}
     </div>
+    </>
   )
 }

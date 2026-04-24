@@ -57,9 +57,9 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
   // ── Load firm ──
   const { data: firm } = await admin
     .from('firms')
-    .select('name, address, logo_url')
+    .select('name, address, logo_url, stripe_account_id')
     .eq('id', userRow.firm_id)
-    .single() as { data: Pick<Firm, 'name' | 'address' | 'logo_url'> | null }
+    .single() as { data: (Pick<Firm, 'name' | 'address' | 'logo_url'> & { stripe_account_id?: string | null }) | null }
 
   if (!firm) return NextResponse.json({ error: 'Firm not found' }, { status: 404 })
 
@@ -83,6 +83,24 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
     pdfBuffer = await generateInvoicePdf({ invoice, client, firm })
   }
 
+  // ── Generate Stripe payment link if connected and not already set ──
+  let paymentLink = invoice.stripe_payment_link ?? null
+  if (!paymentLink && firm.stripe_account_id) {
+    try {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? ''
+      const payRes  = await fetch(`${baseUrl}/api/invoices/${id}/pay`, {
+        method:  'POST',
+        headers: { 'Cookie': request.headers.get('cookie') ?? '' },
+      })
+      if (payRes.ok) {
+        const payData = await payRes.json() as { paymentLink?: string }
+        paymentLink = payData.paymentLink ?? null
+      }
+    } catch (e) {
+      console.warn('[invoices/send] Payment link generation failed:', e)
+    }
+  }
+
   // ── Send email ──
   try {
     await sendInvoiceEmail({
@@ -93,6 +111,7 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
       amount:        invoice.amount,
       dueDate:       invoice.due_date,
       pdfBuffer,
+      paymentLink,
     })
   } catch (emailErr) {
     console.error('[invoices/send] Email error:', emailErr)

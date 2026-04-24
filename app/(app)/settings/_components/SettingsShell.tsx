@@ -5,15 +5,15 @@
  *
  * Sections:
  *   1. Firm Profile — name, CPA name, address, email, phone, logo
- *   2. Integrations — DocuSign connect/disconnect
+ *   2. Integrations — SignNow connect/disconnect
  *   3. Notifications — toggles per alert type
  */
 
 import { useState, useRef, useEffect, useTransition } from 'react'
-import { CheckCircle, XCircle, ExternalLink, Plug, Upload, Loader2 } from 'lucide-react'
+import { CheckCircle, XCircle, ExternalLink, Plug, Upload, Loader2, UserPlus, Trash2 } from 'lucide-react'
 import { useToast } from '@/components/ui/NotificationToast'
 import { cn } from '@/lib/utils'
-import type { FirmAddress } from '@/types'
+import type { FirmAddress, UserRole } from '@/types'
 
 const US_STATES = [
   'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA',
@@ -29,19 +29,34 @@ interface NotificationPrefs {
   invoice_overdue:  boolean
 }
 
+interface TeamMember {
+  id:            string
+  name:          string
+  email:         string
+  role:          UserRole
+  created_at:    string
+  last_login_at: string | null
+}
+
 interface SettingsShellProps {
-  firmId:             string
-  firmName:           string
-  firmAddress:        FirmAddress | null
-  firmLogoUrl:        string | null
-  userRole:           string
-  cpaName:            string
-  userEmail:          string
-  docuSignConnected:  boolean
-  docuSignAccountId:  string | null
-  oauthSuccess:       boolean
-  oauthError:         string | null
-  notificationPrefs:  NotificationPrefs
+  firmId:              string
+  firmName:            string
+  firmAddress:         FirmAddress | null
+  firmLogoUrl:         string | null
+  userRole:            string
+  userId:              string
+  cpaName:             string
+  userEmail:           string
+  signNowConnected:    boolean
+  signNowEmail:        string | null
+  stripeConnected:     boolean
+  stripeAccountId:     string | null
+  oauthSuccess:        boolean
+  oauthError:          string | null
+  stripeOauthSuccess:  boolean
+  stripeOauthError:    string | null
+  notificationPrefs:   NotificationPrefs
+  initialTeam:         TeamMember[]
 }
 
 export function SettingsShell({
@@ -50,13 +65,19 @@ export function SettingsShell({
   firmAddress,
   firmLogoUrl,
   userRole,
+  userId,
   cpaName,
   userEmail,
-  docuSignConnected,
-  docuSignAccountId,
+  signNowConnected,
+  signNowEmail,
+  stripeConnected,
+  stripeAccountId,
   oauthSuccess,
   oauthError,
+  stripeOauthSuccess,
+  stripeOauthError,
   notificationPrefs: initialPrefs,
+  initialTeam,
 }: SettingsShellProps) {
   const { show: toast } = useToast()
   const isOwner = userRole === 'owner'
@@ -77,10 +98,21 @@ export function SettingsShell({
   const [prefs, setPrefs] = useState<NotificationPrefs>(initialPrefs)
   const [savingPrefs, startPrefTransition] = useTransition()
 
+  // ── Team management ──
+  const [team,         setTeam]         = useState<TeamMember[]>(initialTeam)
+  const [showInvite,   setShowInvite]   = useState(false)
+  const [inviteName,   setInviteName]   = useState('')
+  const [inviteEmail,  setInviteEmail]  = useState('')
+  const [inviteRole,   setInviteRole]   = useState<'staff' | 'admin'>('staff')
+  const [inviting,     setInviting]     = useState(false)
+  const [removingId,   setRemovingId]   = useState<string | null>(null)
+
   // ── OAuth toasts ──
   useEffect(() => {
-    if (oauthSuccess) toast({ variant: 'success', message: 'DocuSign connected successfully!' })
-    if (oauthError)   toast({ variant: 'error',   message: `DocuSign error: ${decodeURIComponent(oauthError)}` })
+    if (oauthSuccess)       toast({ variant: 'success', message: 'SignNow connected successfully!' })
+    if (oauthError)         toast({ variant: 'error',   message: `SignNow error: ${decodeURIComponent(oauthError)}` })
+    if (stripeOauthSuccess) toast({ variant: 'success', message: 'Stripe connected successfully!' })
+    if (stripeOauthError)   toast({ variant: 'error',   message: `Stripe error: ${decodeURIComponent(stripeOauthError)}` })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleSaveProfile(e: React.FormEvent) {
@@ -141,6 +173,49 @@ export function SettingsShell({
     const next = { ...prefs, [key]: !prefs[key] }
     setPrefs(next)
     savePrefs(next)
+  }
+
+  async function handleInvite(e: React.FormEvent) {
+    e.preventDefault()
+    if (!inviteName.trim() || !inviteEmail.trim()) return
+    setInviting(true)
+    try {
+      const res = await fetch('/api/team/invite', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name: inviteName.trim(), email: inviteEmail.trim(), role: inviteRole }),
+      })
+      const json = await res.json() as { error?: string }
+      if (!res.ok) { toast({ variant: 'error', message: json.error ?? 'Invite failed.' }); return }
+      toast({ variant: 'success', message: `Invite sent to ${inviteEmail}.` })
+      setInviteName(''); setInviteEmail(''); setInviteRole('staff'); setShowInvite(false)
+    } finally {
+      setInviting(false)
+    }
+  }
+
+  async function handleChangeRole(memberId: string, role: 'staff' | 'admin') {
+    const res = await fetch(`/api/team/${memberId}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ role }),
+    })
+    if (!res.ok) { toast({ variant: 'error', message: 'Failed to update role.' }); return }
+    setTeam(t => t.map(m => m.id === memberId ? { ...m, role } : m))
+    toast({ variant: 'success', message: 'Role updated.' })
+  }
+
+  async function handleRemoveMember(memberId: string, memberName: string) {
+    if (!confirm(`Remove ${memberName} from the firm? This cannot be undone.`)) return
+    setRemovingId(memberId)
+    try {
+      const res = await fetch(`/api/team/${memberId}`, { method: 'DELETE' })
+      if (!res.ok) { toast({ variant: 'error', message: 'Failed to remove member.' }); return }
+      setTeam(t => t.filter(m => m.id !== memberId))
+      toast({ variant: 'success', message: `${memberName} removed.` })
+    } finally {
+      setRemovingId(null)
+    }
   }
 
   return (
@@ -316,25 +391,25 @@ export function SettingsShell({
       </section>
 
       {/* ════════════════════════════════════
-          2. INTEGRATIONS — DocuSign
+          2. INTEGRATIONS — SignNow
           ════════════════════════════════════ */}
       <section>
         <SectionHeader>Integrations</SectionHeader>
         <div className="bg-white border-[0.5px] border-beige-200 rounded-[16px] shadow-card overflow-hidden divide-y divide-beige-100">
 
-          {/* DocuSign row */}
+          {/* SignNow row */}
           <div className="px-5 py-4 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3.5 min-w-0">
               <div className={cn(
                 'h-9 w-9 rounded-[8px] flex items-center justify-center shrink-0',
-                docuSignConnected ? 'bg-[#F05A28]/10' : 'bg-beige-100',
+                signNowConnected ? 'bg-[#1565C0]/10' : 'bg-beige-100',
               )}>
-                <Plug size={17} strokeWidth={1.75} className={docuSignConnected ? 'text-[#F05A28]' : 'text-ink-soft'} />
+                <Plug size={17} strokeWidth={1.75} className={signNowConnected ? 'text-[#1565C0]' : 'text-ink-soft'} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-[13.5px] font-[500] text-ink">DocuSign</p>
-                  {docuSignConnected ? (
+                  <p className="text-[13.5px] font-[500] text-ink">SignNow</p>
+                  {signNowConnected ? (
                     <span className="inline-flex items-center gap-1 text-[11px] font-[450] text-sage-600 bg-sage-50 border border-sage-200 rounded-full px-2 py-0.5">
                       <CheckCircle size={10} strokeWidth={2.5} /> Connected
                     </span>
@@ -345,66 +420,263 @@ export function SettingsShell({
                   )}
                 </div>
                 <p className="text-[12px] text-ink-soft font-light mt-0.5">
-                  {docuSignConnected
-                    ? `Account ${docuSignAccountId ?? '—'} · Send documents for e-signature`
-                    : 'Send engagement letters and documents for e-signature via DocuSign'}
+                  {signNowConnected
+                    ? `${signNowEmail ?? '—'} · Send documents for e-signature`
+                    : 'Send engagement letters and documents for e-signature via SignNow'}
                 </p>
               </div>
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              {docuSignConnected ? (
+              {signNowConnected ? (
                 <>
                   <a
-                    href="https://app.docusign.com"
+                    href="https://app.signnow.com"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-1.5 h-8 px-3 text-[12.5px] font-[450] border-[0.5px] border-beige-300 rounded-[8px] bg-white text-ink-mid hover:text-ink hover:border-beige-400 transition-colors"
                   >
-                    <ExternalLink size={12} strokeWidth={1.75} /> Open DocuSign
+                    <ExternalLink size={12} strokeWidth={1.75} /> Open SignNow
                   </a>
                   {isOwner && <DisconnectButton />}
                 </>
               ) : (
                 isOwner ? (
                   <a
-                    href="/api/auth/docusign"
-                    className="inline-flex items-center gap-1.5 h-8 px-3.5 text-[12.5px] font-[450] bg-[#F05A28] text-white rounded-[8px] hover:bg-[#d14a1e] transition-colors"
+                    href="/api/auth/signnow"
+                    className="inline-flex items-center gap-1.5 h-8 px-3.5 text-[12.5px] font-[450] bg-[#1565C0] text-white rounded-[8px] hover:bg-[#0d47a1] transition-colors"
                   >
-                    <Plug size={13} strokeWidth={2} /> Connect DocuSign
+                    <Plug size={13} strokeWidth={2} /> Connect SignNow
                   </a>
                 ) : (
-                  <p className="text-[12px] text-ink-soft italic">Ask your firm owner to connect DocuSign.</p>
+                  <p className="text-[12px] text-ink-soft italic">Ask your firm owner to connect SignNow.</p>
                 )
               )}
             </div>
           </div>
 
-          {/* Stripe placeholder */}
-          <div className="px-5 py-4 flex items-center justify-between gap-4 opacity-50">
-            <div className="flex items-center gap-3.5">
-              <div className="h-9 w-9 rounded-[8px] bg-beige-100 flex items-center justify-center shrink-0">
-                <span className="text-[13px] font-bold text-ink-soft">S</span>
+          {/* Stripe row */}
+          <div className="px-5 py-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3.5 min-w-0">
+              <div className={cn(
+                'h-9 w-9 rounded-[8px] flex items-center justify-center shrink-0',
+                stripeConnected ? 'bg-[#635BFF]/10' : 'bg-beige-100',
+              )}>
+                <span className={cn(
+                  'text-[13px] font-bold',
+                  stripeConnected ? 'text-[#635BFF]' : 'text-ink-soft',
+                )}>
+                  S
+                </span>
               </div>
-              <div>
-                <p className="text-[13.5px] font-[500] text-ink">Stripe</p>
-                <p className="text-[12px] text-ink-soft font-light mt-0.5">Accept invoice payments online — coming soon</p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-[13.5px] font-[500] text-ink">Stripe</p>
+                  {stripeConnected ? (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-[450] text-sage-600 bg-sage-50 border border-sage-200 rounded-full px-2 py-0.5">
+                      <CheckCircle size={10} strokeWidth={2.5} /> Connected
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-[450] text-ink-soft bg-beige-100 border border-beige-200 rounded-full px-2 py-0.5">
+                      <XCircle size={10} strokeWidth={2} /> Not connected
+                    </span>
+                  )}
+                </div>
+                <p className="text-[12px] text-ink-soft font-light mt-0.5">
+                  {stripeConnected
+                    ? `${stripeAccountId ?? '—'} · Accept invoice payments online`
+                    : 'Connect Stripe to accept invoice payments from clients'}
+                </p>
               </div>
             </div>
-            <span className="text-[11.5px] text-ink-soft border-[0.5px] border-beige-200 rounded-full px-2.5 py-1">Coming soon</span>
+
+            <div className="flex items-center gap-2 shrink-0">
+              {stripeConnected ? (
+                <>
+                  <a
+                    href="https://dashboard.stripe.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 h-8 px-3 text-[12.5px] font-[450] border-[0.5px] border-beige-300 rounded-[8px] bg-white text-ink-mid hover:text-ink hover:border-beige-400 transition-colors"
+                  >
+                    <ExternalLink size={12} strokeWidth={1.75} /> Stripe Dashboard
+                  </a>
+                  {isOwner && <StripeDisconnectButton />}
+                </>
+              ) : (
+                isOwner ? (
+                  <a
+                    href="/api/auth/stripe"
+                    className="inline-flex items-center gap-1.5 h-8 px-3.5 text-[12.5px] font-[450] bg-[#635BFF] text-white rounded-[8px] hover:bg-[#5147d8] transition-colors"
+                  >
+                    <Plug size={13} strokeWidth={2} /> Connect Stripe
+                  </a>
+                ) : (
+                  <p className="text-[12px] text-ink-soft italic">Ask your firm owner to connect Stripe.</p>
+                )
+              )}
+            </div>
           </div>
         </div>
       </section>
 
       {/* ════════════════════════════════════
-          3. NOTIFICATION PREFERENCES
+          3. TEAM
+          ════════════════════════════════════ */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <SectionHeader>Team</SectionHeader>
+          {isOwner && (
+            <button
+              type="button"
+              onClick={() => setShowInvite(v => !v)}
+              className="inline-flex items-center gap-1.5 h-7 px-3 text-[12px] font-[450] border border-beige-300 rounded-[8px] bg-white text-ink-mid hover:text-ink hover:border-beige-400 transition-colors"
+            >
+              <UserPlus size={12} strokeWidth={1.75} />
+              Invite member
+            </button>
+          )}
+        </div>
+
+        <div className="bg-white border-[0.5px] border-beige-200 rounded-[16px] shadow-card overflow-hidden">
+
+          {/* Invite form */}
+          {showInvite && isOwner && (
+            <form
+              onSubmit={handleInvite}
+              className="px-5 py-4 border-b border-beige-100 bg-beige-50/60 flex flex-wrap items-end gap-3"
+            >
+              <div className="flex-1 min-w-[140px]">
+                <label className="block text-[11px] font-[500] text-ink-mid mb-1">Full name</label>
+                <input
+                  type="text"
+                  value={inviteName}
+                  onChange={e => setInviteName(e.target.value)}
+                  placeholder="Jane Smith"
+                  required
+                  className={teamInputCls}
+                />
+              </div>
+              <div className="flex-1 min-w-[180px]">
+                <label className="block text-[11px] font-[500] text-ink-mid mb-1">Email</label>
+                <input
+                  type="email"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="jane@example.com"
+                  required
+                  className={teamInputCls}
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-[500] text-ink-mid mb-1">Role</label>
+                <select
+                  value={inviteRole}
+                  onChange={e => setInviteRole(e.target.value as 'staff' | 'admin')}
+                  className={teamInputCls}
+                >
+                  <option value="staff">Staff</option>
+                  <option value="admin">Admin</option>
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="submit"
+                  disabled={inviting}
+                  className="inline-flex items-center gap-1.5 h-9 px-4 bg-ink text-white text-[12.5px] font-[450] rounded-[8px] hover:bg-ink/90 transition-colors disabled:opacity-60"
+                >
+                  {inviting ? <Loader2 size={12} className="animate-spin" /> : <UserPlus size={12} strokeWidth={2} />}
+                  {inviting ? 'Sending…' : 'Send invite'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowInvite(false)}
+                  className="h-9 px-3 text-[12.5px] text-ink-soft hover:text-ink transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Member list */}
+          <div className="divide-y divide-beige-100">
+            {team.map(member => (
+              <div key={member.id} className="px-5 py-3.5 flex items-center gap-3">
+                {/* Avatar */}
+                <div className="h-8 w-8 rounded-full bg-beige-200 flex items-center justify-center shrink-0">
+                  <span className="text-[12px] font-semibold text-ink-mid">
+                    {member.name.charAt(0).toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Name + email */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-[13px] font-[500] text-ink truncate">{member.name}</p>
+                    {member.id === userId && (
+                      <span className="text-[10.5px] text-ink-soft bg-beige-100 border border-beige-200 rounded-full px-1.5 py-0.5">You</span>
+                    )}
+                  </div>
+                  <p className="text-[11.5px] text-ink-soft font-light truncate">{member.email}</p>
+                </div>
+
+                {/* Role — editable by owner for non-self non-owner members */}
+                {isOwner && member.id !== userId && member.role !== 'owner' ? (
+                  <select
+                    value={member.role}
+                    onChange={e => handleChangeRole(member.id, e.target.value as 'staff' | 'admin')}
+                    className="h-7 px-2 text-[12px] font-[450] text-ink-mid border border-beige-200 rounded-[7px] outline-none focus:ring-1 focus:ring-ink/20 bg-white transition-colors"
+                  >
+                    <option value="staff">Staff</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                ) : (
+                  <span className={cn(
+                    'inline-flex items-center text-[11px] font-[450] px-2 py-1 rounded-full border',
+                    member.role === 'owner' ? 'bg-ink text-white border-ink' :
+                    member.role === 'admin' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                              'bg-beige-100 text-ink-mid border-beige-200',
+                  )}>
+                    {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
+                  </span>
+                )}
+
+                {/* Remove button */}
+                {isOwner && member.id !== userId && member.role !== 'owner' && (
+                  <button
+                    type="button"
+                    disabled={removingId === member.id}
+                    onClick={() => handleRemoveMember(member.id, member.name)}
+                    title="Remove member"
+                    className="shrink-0 p-1.5 text-ink-soft hover:text-red-500 transition-colors disabled:opacity-50"
+                  >
+                    {removingId === member.id
+                      ? <Loader2 size={13} className="animate-spin" />
+                      : <Trash2 size={13} strokeWidth={1.75} />
+                    }
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        {!isOwner && (
+          <p className="text-[12px] text-ink-soft font-light mt-2">
+            Contact your firm owner to manage team members.
+          </p>
+        )}
+      </section>
+
+      {/* ════════════════════════════════════
+          4. NOTIFICATION PREFERENCES
           ════════════════════════════════════ */}
       <section>
         <SectionHeader>Notification Preferences</SectionHeader>
         <div className="bg-white border-[0.5px] border-beige-200 rounded-[16px] shadow-card overflow-hidden divide-y divide-beige-100">
           {([
             { key: 'deadline_alerts',  label: 'Deadline alerts',                desc: 'Email reminders at 30, 14, and 7 days before filing deadlines' },
-            { key: 'document_signed',  label: 'Document signed',                desc: 'Notify when a client signs an engagement letter via DocuSign' },
+            { key: 'document_signed',  label: 'Document signed',                desc: 'Notify when a client signs an engagement letter via SignNow' },
             { key: 'portal_submitted', label: 'Portal submitted',               desc: 'Notify when a client completes the onboarding portal' },
             { key: 'invoice_overdue',  label: 'Invoice overdue',                desc: 'Notify when an invoice passes its due date unpaid' },
           ] as { key: keyof NotificationPrefs; label: string; desc: string }[]).map(item => (
@@ -488,8 +760,30 @@ function Toggle({ enabled, onChange, disabled }: { enabled: boolean; onChange: (
 
 function DisconnectButton() {
   async function handleDisconnect() {
-    if (!confirm('Disconnect DocuSign? Documents already sent will not be affected.')) return
-    await fetch('/api/auth/docusign/disconnect', { method: 'POST' })
+    if (!confirm('Disconnect SignNow? Documents already sent will not be affected.')) return
+    await fetch('/api/auth/signnow/disconnect', { method: 'POST' })
+    window.location.reload()
+  }
+  return (
+    <button
+      type="button"
+      onClick={handleDisconnect}
+      className="inline-flex items-center gap-1.5 h-8 px-3 text-[12.5px] font-[450] border-[0.5px] border-red-200 rounded-[8px] bg-white text-red-500 hover:text-red-600 hover:border-red-300 transition-colors"
+    >
+      Disconnect
+    </button>
+  )
+}
+
+const teamInputCls = cn(
+  'h-9 px-2.5 text-[12.5px] text-ink bg-white border border-beige-200 rounded-[8px] outline-none',
+  'focus:ring-1 focus:ring-ink/20 focus:border-ink/30 transition-colors w-full',
+)
+
+function StripeDisconnectButton() {
+  async function handleDisconnect() {
+    if (!confirm('Disconnect Stripe? Existing payment links will stop working.')) return
+    await fetch('/api/auth/stripe/disconnect', { method: 'POST' })
     window.location.reload()
   }
   return (

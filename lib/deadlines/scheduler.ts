@@ -21,6 +21,7 @@ interface DeadlineWithContext extends Deadline {
   client_email: string
   firm_name:    string
   firm_id:      string
+  firm_owner_id: string
 }
 
 type AlertThreshold = 30 | 14 | 7
@@ -143,7 +144,7 @@ export async function checkDeadlines(): Promise<CheckDeadlinesResult> {
     .select(`
       *,
       clients!inner ( name, email, firm_id ),
-      firms!inner   ( name )
+      firms!inner   ( name, owner_id )
     `)
     .eq('status', 'pending')
 
@@ -155,13 +156,14 @@ export async function checkDeadlines(): Promise<CheckDeadlinesResult> {
   const deadlines: DeadlineWithContext[] = rows.map((r: Record<string, unknown>) => {
     const { clients, firms, ...dl } = r
     const c = clients as { name: string; email: string; firm_id: string }
-    const f = firms   as { name: string }
+    const f = firms   as { name: string; owner_id: string }
     return {
       ...(dl as unknown as Deadline),
-      client_name:  c.name,
-      client_email: c.email,
-      firm_name:    f.name,
-      firm_id:      dl.firm_id as string,
+      client_name:   c.name,
+      client_email:  c.email,
+      firm_name:     f.name,
+      firm_id:       dl.firm_id as string,
+      firm_owner_id: f.owner_id,
     }
   })
 
@@ -193,12 +195,13 @@ export async function checkDeadlines(): Promise<CheckDeadlinesResult> {
         await admin
           .from('notifications')
           .insert({
-            firm_id:   deadline.firm_id,
-            client_id: deadline.client_id,
-            type:      'deadline_alert',
-            title:     `${deadline.filing_type} due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
-            detail:    `Reminder sent to ${deadline.client_email}`,
-            read:      false,
+            firm_id:  deadline.firm_id,
+            user_id:  deadline.firm_owner_id,
+            type:     'deadline_alert',
+            title:    `${deadline.filing_type} due in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}`,
+            body:     `Reminder sent to ${deadline.client_email}`,
+            read:     false,
+            link:     `/deadlines`,
           })
 
         // ── Flip alert flag ──

@@ -333,3 +333,40 @@ export async function generateInvoicePdf(data: InvoicePdfData): Promise<Buffer> 
 
 /** Build the invoice HTML string (for email attachment or preview). */
 export { buildInvoiceHtml }
+
+/**
+ * Render arbitrary HTML content to a PDF Buffer.
+ * Used for document PDFs (engagement letters, proposals).
+ */
+export async function generatePDF(contentHtml: string): Promise<Buffer> {
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+  })
+
+  try {
+    const page = await browser.newPage()
+    const html = `<!DOCTYPE html><html><head>
+      <style>
+        body { font-family: 'Georgia', serif; color: #1A1916;
+               padding: 60px; font-size: 13px; line-height: 1.8; }
+        h1, h2, h3 { font-family: Georgia, serif; }
+        .signature-block { margin-top: 60px; display: grid;
+                           grid-template-columns: 1fr 1fr; gap: 60px; }
+        .sig-line { border-top: 1px solid #1A1916; margin-top: 60px;
+                    padding-top: 8px; font-size: 11px; color: #5A584F; }
+      </style>
+    </head><body>${contentHtml}</body></html>`
+
+    await page.setContent(html, { waitUntil: 'networkidle0' })
+
+    const pdf = await page.pdf({
+      format: 'Letter',
+      margin: { top: '0.8in', right: '0.8in', bottom: '0.8in', left: '0.8in' },
+    })
+
+    return Buffer.from(pdf)
+  } finally {
+    await browser.close()
+  }
+}

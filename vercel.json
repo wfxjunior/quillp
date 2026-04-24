@@ -1,4 +1,8 @@
 {
+  "crons": [
+    { "path": "/api/cron/deadlines", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/invoices",  "schedule": "0 8 1 * *" }
+  ],
   "functions": {
     "app/api/ai/generate-document/route.ts": {
       "maxDuration": 30

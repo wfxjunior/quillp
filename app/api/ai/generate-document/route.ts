@@ -16,175 +16,19 @@
  *   Used by the document generator UI.
  */
 
-import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
-import { createClient } from '@/lib/supabase/server'
-import { SERVICE_DOC_MAPPINGS } from '@/lib/onboarding/service-mappings'
-import type { DocumentType } from '@/types'
+import { NextRequest, NextResponse }   from 'next/server'
+import OpenAI                          from 'openai'
+import { createClient }                from '@/lib/supabase/server'
+import { SERVICE_DOC_MAPPINGS }        from '@/lib/onboarding/service-mappings'
+import { rateLimit }                   from '@/lib/security/rate-limit'
+import {
+  buildGenerationPrompt,
+  type PromptParams,
+}                                      from '@/lib/ai/generate-document'
+import type { DocumentType }           from '@/types'
 
 function getOpenAI() {
   return new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-}
-
-// ─────────────────────────────────────────
-// System prompts — blueprint §11.2 / §11.4
-// ─────────────────────────────────────────
-
-const ENGAGEMENT_SYSTEM_PROMPT = `You are an expert legal and accounting document writer specializing in CPA engagement letters.
-Generate professional, complete engagement letters that are:
-- Compliant with AICPA professional standards for engagement letters
-- Specific to the state and jurisdiction provided
-- Properly scoped to limit the CPA's liability
-- Formatted as clean HTML with semantic structure
-
-Use these formatting rules:
-- Wrap the entire document in a single <div class="document-body">
-- Use <p> for paragraphs
-- Use <strong> for defined terms on first use
-- Use <table> for fee schedules
-- Use <div class="signature-block"> for signature areas
-- Do not use external CSS classes — this will be rendered in an iframe
-- Do not include <html>, <head>, or <body> tags
-
-The letter must include these sections in order:
-1. Header (firm name, date, client name and address)
-2. Salutation
-3. Purpose of letter paragraph
-4. Scope of services (specific and limited)
-5. Client responsibilities section
-6. Firm responsibilities section
-7. Fee and payment terms section
-8. Limitations and exclusions section
-9. Confidentiality statement
-10. Governing law (state-specific)
-11. Agreement and authorization paragraph
-12. Signature blocks for both parties`
-
-const PROPOSAL_SYSTEM_PROMPT = `You are generating a professional service proposal for an accounting firm.
-The proposal should be persuasive, professional, and clearly communicate value.
-It should not be a legal document — it is a sales and scope document.
-Format as clean HTML wrapped in <div class="document-body">. Use <p>, <ul>, <table>, and <div class="signature-block">. No <html>, <head>, or <body> tags.`
-
-const CHECKLIST_SYSTEM_PROMPT = `You are generating a structured tax document checklist for a CPA firm.
-Format as clean HTML wrapped in <div class="document-body">.
-Use a <table> with columns: Document, Description, Required (Yes/No), Notes.
-Keep rows concise. Include all common documents for the given service type.
-No <html>, <head>, or <body> tags.`
-
-const FORM_2848_SYSTEM_PROMPT = `You are generating a summary cover letter to accompany IRS Form 2848 (Power of Attorney).
-Format as clean HTML wrapped in <div class="document-body">.
-The letter explains to the client what they are authorizing, why, and what to sign.
-Tone: professional and plain-English. No <html>, <head>, or <body> tags.`
-
-const INVOICE_SYSTEM_PROMPT = `You are generating a professional invoice for an accounting firm.
-Format as clean HTML wrapped in <div class="document-body">.
-Include: header with firm name/address, invoice number, date, client name/address, itemized services table with amounts, subtotal, and payment terms.
-No <html>, <head>, or <body> tags.`
-
-const SYSTEM_PROMPTS: Record<string, string> = {
-  engagement_letter: ENGAGEMENT_SYSTEM_PROMPT,
-  proposal:          PROPOSAL_SYSTEM_PROMPT,
-  checklist:         CHECKLIST_SYSTEM_PROMPT,
-  form_2848:         FORM_2848_SYSTEM_PROMPT,
-  invoice:           INVOICE_SYSTEM_PROMPT,
-}
-
-// ─────────────────────────────────────────
-// Prompt builders
-// ─────────────────────────────────────────
-
-interface PromptParams {
-  firmName:       string
-  firmAddress:    string
-  cpaName:        string
-  primaryState:   string | null
-  clientName:     string
-  serviceType:    string         // human label
-  taxYear:        number | null
-  feeAmount:      number | null
-  feeStructure:   string | null
-  jurisdiction:   string
-  specialTerms:   string
-  firmPrefs:      string         // injected FirmTemplate preferences
-  today:          string
-  documentType:   string
-}
-
-function buildUserPrompt(p: PromptParams): string {
-  const feeStr = p.feeAmount
-    ? `$${p.feeAmount.toLocaleString()} (${(p.feeStructure ?? 'flat fee').replace(/_/g, ' ')})`
-    : 'To be discussed'
-
-  const jurisdiction = `Federal${p.jurisdiction ? ` + ${p.jurisdiction}` : p.primaryState ? ` + ${p.primaryState}` : ''}`
-
-  const scCorpAddition = p.serviceType.toLowerCase().includes('s-corp') || p.serviceType.includes('1120-S')
-    ? `\nService type: S-Corporation Tax Return (Form 1120-S)\nFiling deadline: March 15, ${(p.taxYear ?? new Date().getFullYear()) + 1}\nAdditional scope: Corporate tax return preparation and filing for ${p.clientName}\nNote: This engagement covers only the corporate return. Individual returns are separate engagements.`
-    : ''
-
-  if (p.documentType === 'engagement_letter') {
-    return `Generate a professional engagement letter with the following parameters:
-
-Firm name: ${p.firmName}
-CPA name: ${p.cpaName}
-Firm address: ${p.firmAddress}
-Client name: ${p.clientName}
-Service type: ${p.serviceType}${scCorpAddition}
-Tax year: ${p.taxYear ?? new Date().getFullYear()}
-Filing jurisdiction: ${jurisdiction}
-Fee: ${feeStr}
-Date: ${p.today}
-${p.firmPrefs ? `\n${p.firmPrefs}` : ''}${p.specialTerms ? `\nSpecial terms: ${p.specialTerms}` : ''}
-
-Generate the complete engagement letter now.`
-  }
-
-  if (p.documentType === 'proposal') {
-    return `Generate a professional accounting services proposal:
-
-Firm: ${p.firmName}
-CPA: ${p.cpaName}
-Prospect name: ${p.clientName}
-Services proposed: ${p.serviceType}
-Estimated fees: ${feeStr}
-Filing jurisdiction: ${jurisdiction}
-Date: ${p.today}
-${p.specialTerms ? `\nAdditional notes: ${p.specialTerms}` : ''}
-
-Include sections: Introduction, Our Approach, Services Included, What's Not Included, Investment, Next Steps.`
-  }
-
-  if (p.documentType === 'checklist') {
-    return `Generate a tax document checklist for:
-
-Client: ${p.clientName}
-Service type: ${p.serviceType}
-Tax year: ${p.taxYear ?? new Date().getFullYear()}
-Filing jurisdiction: ${jurisdiction}
-Date: ${p.today}
-${p.specialTerms ? `\nAdditional notes: ${p.specialTerms}` : ''}`
-  }
-
-  if (p.documentType === 'form_2848') {
-    return `Generate a Form 2848 cover letter for:
-
-Firm: ${p.firmName}
-CPA: ${p.cpaName}
-Client: ${p.clientName}
-Date: ${p.today}
-${p.specialTerms ? `\nAdditional notes: ${p.specialTerms}` : ''}`
-  }
-
-  // invoice
-  return `Generate a professional invoice for:
-
-Firm: ${p.firmName}
-Firm address: ${p.firmAddress}
-CPA: ${p.cpaName}
-Client: ${p.clientName}
-Services: ${p.serviceType}
-Amount: ${feeStr}
-Date: ${p.today}
-${p.specialTerms ? `\nAdditional notes: ${p.specialTerms}` : ''}`
 }
 
 // ─────────────────────────────────────────
@@ -203,32 +47,33 @@ async function generateAndSaveLegacy(documentId: string, params: {
   taxYear:      number | null
 }) {
   const supabase = await createClient()
-  const today = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-  const feeStr = params.feeAmount
-    ? `$${params.feeAmount.toLocaleString()} (${(params.feeStructure ?? 'flat fee').replace('_', ' ')})`
-    : 'To be discussed'
+  const today    = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
 
-  const userPrompt = `Generate a professional engagement letter with the following parameters:
-
-Firm name: ${params.firmName}
-CPA name: ${params.cpaName}
-Client name: ${params.clientName}
-Service type: ${params.serviceType}
-Tax year: ${params.taxYear ?? new Date().getFullYear()}
-Filing jurisdiction: Federal${params.primaryState ? ` + ${params.primaryState}` : ''}
-Fee: ${feeStr}
-Date: ${today}
-
-Generate the complete engagement letter now.`
+  const { systemPrompt, userPrompt, temperature } = buildGenerationPrompt({
+    firmName:     params.firmName,
+    firmAddress:  '',
+    cpaName:      params.cpaName,
+    primaryState: params.primaryState,
+    clientName:   params.clientName,
+    serviceType:  params.serviceType,
+    taxYear:      params.taxYear,
+    feeAmount:    params.feeAmount,
+    feeStructure: params.feeStructure,
+    jurisdiction: params.primaryState ?? '',
+    specialTerms: '',
+    firmPrefs:    '',
+    today,
+    documentType: 'engagement_letter',
+  })
 
   try {
     const completion = await getOpenAI().chat.completions.create({
       model:       'gpt-4o',
-      temperature: 0.2,
+      temperature,
       max_tokens:  2000,
       messages: [
-        { role: 'system', content: ENGAGEMENT_SYSTEM_PROMPT },
-        { role: 'user',   content: userPrompt },
+        { role: 'system', content: systemPrompt },
+        { role: 'user',   content: userPrompt   },
       ],
     })
     const html = completion.choices[0]?.message?.content ?? ''
@@ -242,12 +87,27 @@ Generate the complete engagement letter now.`
 // POST handler
 // ─────────────────────────────────────────
 
+const DOC_TITLE_MAP: Record<string, string> = {
+  engagement_letter: 'Engagement Letter',
+  proposal:          'Proposal',
+  form_2848:         'Form 2848 — Power of Attorney',
+  invoice:           'Invoice',
+  checklist:         'Tax Document Checklist',
+  onboarding_portal: 'Onboarding Portal',
+  delivery_summary:  'Delivery Summary',
+}
+
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
 
   const { data: { user: authUser } } = await supabase.auth.getUser()
   if (!authUser) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // 20 generations per 10 minutes per user
+  if (!rateLimit(`generate-document:${authUser.id}`, 20, 600_000)) {
+    return NextResponse.json({ error: 'Too many requests. Please wait before generating another document.' }, { status: 429 })
   }
 
   let body: Record<string, unknown>
@@ -258,11 +118,11 @@ export async function POST(request: NextRequest) {
   }
 
   const { client_id, service_type, document_type, fee_amount, jurisdiction, special_terms } = body as {
-    client_id:     string
-    service_type?: string
+    client_id:      string
+    service_type?:  string
     document_type?: DocumentType
-    fee_amount?:   number | null
-    jurisdiction?: string
+    fee_amount?:    number | null
+    jurisdiction?:  string
     special_terms?: string
   }
 
@@ -270,7 +130,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'client_id is required' }, { status: 400 })
   }
 
-  // Fetch user + firm + client in parallel
   const { data: userRow } = await supabase
     .from('users')
     .select('firm_id, name')
@@ -291,7 +150,6 @@ export async function POST(request: NextRequest) {
   }
 
   // ── LEGACY MODE ──────────────────────────────────────────────────
-  // No document_type → old fire-and-forget behavior
   if (!document_type) {
     if (!service_type) {
       return NextResponse.json({ error: 'service_type is required in legacy mode' }, { status: 400 })
@@ -342,26 +200,14 @@ export async function POST(request: NextRequest) {
   }
 
   // ── STREAMING MODE ────────────────────────────────────────────────
-  // Resolve service label
   const { SERVICE_OPTIONS } = await import('@/lib/onboarding/service-mappings')
   const serviceLabel = SERVICE_OPTIONS.find(s => s.value === service_type)?.label ?? service_type ?? document_type
 
-  // Build doc title
-  const DOC_TITLE_MAP: Record<string, string> = {
-    engagement_letter: 'Engagement Letter',
-    proposal:          'Proposal',
-    form_2848:         'Form 2848 — Power of Attorney',
-    invoice:           'Invoice',
-    checklist:         'Tax Document Checklist',
-    onboarding_portal: 'Onboarding Portal',
-    delivery_summary:  'Delivery Summary',
-  }
   const docTitle = (() => {
     const base = DOC_TITLE_MAP[document_type] ?? document_type
     return serviceLabel ? `${base} — ${serviceLabel}` : base
   })()
 
-  // Check for FirmTemplate preferences (§11.6)
   const { data: firmTemplate } = await supabase
     .from('firm_templates')
     .select('diff_from_default')
@@ -378,7 +224,6 @@ export async function POST(request: NextRequest) {
       }`
     : ''
 
-  // Format firm address
   const addr = firmRow?.address as { street?: string; city?: string; state?: string; zip?: string } | null
   const firmAddress = addr
     ? [addr.street, `${addr.city ?? ''}, ${addr.state ?? ''} ${addr.zip ?? ''}`.trim()].filter(Boolean).join('\n')
@@ -403,12 +248,8 @@ export async function POST(request: NextRequest) {
     documentType: document_type,
   }
 
-  const systemPrompt = SYSTEM_PROMPTS[document_type] ?? ENGAGEMENT_SYSTEM_PROMPT
-  const userPrompt   = buildUserPrompt(promptParams)
+  const { systemPrompt, userPrompt, temperature } = buildGenerationPrompt(promptParams)
 
-  const temperature = document_type === 'proposal' ? 0.4 : 0.2
-
-  // Create document record before streaming (so we can return its ID in a header)
   const { data: newDoc, error: insertError } = await supabase
     .from('documents')
     .insert({
@@ -439,7 +280,6 @@ export async function POST(request: NextRequest) {
 
   const documentId = newDoc.id
 
-  // Stream GPT-4o, accumulate, save on completion
   const openaiStream = await getOpenAI().chat.completions.create({
     model:       'gpt-4o',
     temperature,
@@ -464,21 +304,13 @@ export async function POST(request: NextRequest) {
             controller.enqueue(encoder.encode(token))
           }
         }
-        // Persist the completed document
         const supabaseInner = await createClient()
-        await supabaseInner
-          .from('documents')
-          .update({ content_html: fullContent })
-          .eq('id', documentId)
+        await supabaseInner.from('documents').update({ content_html: fullContent }).eq('id', documentId)
       } catch (err) {
         console.error('[generate-document stream] Generation failed for doc', documentId, err)
-        // Still try to save whatever we got
         if (fullContent) {
           const supabaseInner = await createClient()
-          supabaseInner
-            .from('documents')
-            .update({ content_html: fullContent })
-            .eq('id', documentId)
+          supabaseInner.from('documents').update({ content_html: fullContent }).eq('id', documentId)
             .then(() => {}, console.error)
         }
       } finally {
@@ -489,9 +321,9 @@ export async function POST(request: NextRequest) {
 
   return new Response(readable, {
     headers: {
-      'Content-Type':    'text/plain; charset=utf-8',
-      'X-Document-Id':   documentId,
-      'Cache-Control':   'no-cache, no-store',
+      'Content-Type':      'text/plain; charset=utf-8',
+      'X-Document-Id':     documentId,
+      'Cache-Control':     'no-cache, no-store',
       'X-Accel-Buffering': 'no',
     },
   })

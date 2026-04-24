@@ -1,14 +1,14 @@
 'use client'
 
 /**
- * Step1Sign — Show the engagement letter and handle DocuSign signing.
+ * Step1Sign — Show the engagement letter and handle SignNow signing.
  *
- * If the letter has a docusign_envelope_id:
- *   - Show "Check your email for the DocuSign signing link"
+ * If the letter has a signnow_document_id:
+ *   - Show "Check your email for the SignNow signing link"
  *   - Poll GET /api/portal/[token] every 5s for status === 'signed'
  *   - Also offer a manual "I've signed it" button that triggers one poll
  *
- * If no envelope (draft/sent state):
+ * If no document (draft/sent state):
  *   - Show the letter HTML preview
  *   - "I've reviewed this letter" → proceed directly (signing is external)
  */
@@ -26,7 +26,7 @@ interface Step1SignProps {
 }
 
 export function Step1Sign({ token, letter, firmName, onContinue }: Step1SignProps) {
-  const hasEnvelope  = !!letter.docusign_envelope_id
+  const hasEnvelope  = !!letter.signnow_document_id
   const alreadySigned = letter.status === 'signed'
 
   const [signed,   setSigned]   = useState(alreadySigned)
@@ -126,7 +126,7 @@ export function Step1Sign({ token, letter, firmName, onContinue }: Step1SignProp
         </div>
       )}
 
-      {/* DocuSign signing instructions */}
+      {/* SignNow signing instructions */}
       {hasEnvelope ? (
         <div className="bg-blue-50 border border-blue-100 rounded-[12px] p-4">
           <div className="flex gap-3">
@@ -136,7 +136,7 @@ export function Step1Sign({ token, letter, firmName, onContinue }: Step1SignProp
                 Signing link sent to your email
               </p>
               <p className="text-[12.5px] text-blue-600 font-light">
-                Check your inbox for an email from DocuSign. Click the link to review and sign the letter. Once signed, this page will update automatically.
+                Check your inbox for an email from SignNow. Click the link to review and sign the letter. Once signed, this page will update automatically.
               </p>
             </div>
           </div>
@@ -161,7 +161,7 @@ export function Step1Sign({ token, letter, firmName, onContinue }: Step1SignProp
             </button>
             {polled && !signed && (
               <p className="text-[12px] text-ink-soft">
-                Not signed yet — the DocuSign page may take a moment to update.
+                Not signed yet — the SignNow page may take a moment to update.
               </p>
             )}
           </>
