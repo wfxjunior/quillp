@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
+import './landing.css'
 
 // ─────────────────────────────────────────
 // Shared icon
@@ -16,18 +17,10 @@ function CheckIcon({ stroke = '#3D7234' }: { stroke?: string }) {
 }
 
 // ─────────────────────────────────────────
-// Scroll Reveal — class-based (data-* stripped by Next.js)
+// Scroll Reveal — class-based
 // Classes: rev-u (up), rev-l (left)  →  add .in when intersecting
 // Delay: CSS custom property --d (e.g. style={{ '--d': '100ms' }})
 // ─────────────────────────────────────────
-
-const REVEAL_CSS = `
-  .rev-u,.rev-l{opacity:0;transition:opacity .5s ease,transform .5s ease;transition-delay:var(--d,0ms);will-change:transform}
-  .rev-u{transform:translateY(20px)}
-  .rev-l{transform:translateX(-20px)}
-  .rev-u.in,.rev-l.in{opacity:1!important;transform:none!important}
-  @media(prefers-reduced-motion:reduce){.rev-u,.rev-l{opacity:1!important;transform:none!important;transition:none!important}}
-`
 
 function useScrollReveal() {
   useEffect(() => {
@@ -216,9 +209,9 @@ function Metric({ prefix='', value, suffix, label, dur, delay }: {
 // ─────────────────────────────────────────
 
 const TESTIMONIALS = [
-  { ini: 'JM', quote: 'I used to spend Sunday nights writing engagement letters. Now I generate them in 30 seconds and spend Sunday with my family.', name: 'Jennifer Mills, CPA', role: 'Solo practice · Austin, TX' },
-  { ini: 'RK', quote: 'My client onboarding went from 3 emails and 5 days to one link and one sitting. My clients actually thank me now.',            name: 'Robert Kim, CPA',     role: '3-person firm · Miami, FL' },
-  { ini: 'SP', quote: "The deadline dashboard alone is worth every penny. 80 clients and I haven't missed a single filing date since I started.",    name: 'Sandra Perez, CPA',  role: 'Solo practice · Phoenix, AZ' },
+  { ini: 'JM', quote: 'Week 1: created my 1040 service in 20 minutes. Week 2: assigned it to 8 clients. Week 3: received all 8 document packages — without sending a single email. This is what I\'ve been waiting for.', name: 'Jennifer Mills, CPA', role: 'Solo practice · Austin, TX · 14 years in practice' },
+  { ini: 'RK', quote: 'My clients now know exactly where their return stands at every moment. I used to get 5 \'where is my return?\' calls per week. Last month: zero. The process tracker changed everything.',            name: 'Robert Kim, CPA',     role: '3-person firm · Miami, FL · 80 active clients' },
+  { ini: 'SP', quote: 'The file organization alone is worth it. Every document, every client, every year — in the right place. I found a 2022 K-1 for a client in 8 seconds last week. That used to take 20 minutes.',    name: 'Sandra Perez, CPA',  role: 'Solo practice · Phoenix, AZ · 0 missed deadlines in 6 months' },
 ]
 
 function Carousel() {
@@ -315,20 +308,6 @@ export default function LandingPage() {
     <div className="min-h-screen bg-beige-50 text-ink overflow-x-hidden font-sans">
       <ScrollProgressBar />
 
-      <style>{`
-        ${REVEAL_CSS}
-        @keyframes blink{50%{opacity:0}}
-        .term-cursor{display:inline-block;width:8px;height:14px;background:#6FA664;border-radius:1px;vertical-align:middle;animation:blink 1s step-end infinite}
-        @keyframes fadeIn{from{opacity:0}to{opacity:1}}
-        @keyframes ctaPulse{0%,100%{box-shadow:0 0 0 0 rgba(111,166,100,0)}50%{box-shadow:0 0 0 8px rgba(111,166,100,.15)}}
-        .cta-pulse{animation:ctaPulse 2s ease infinite}
-        .feat-card-hover{transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease}
-        .feat-card-hover:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(26,25,22,0.12)}
-        .step-card-mid:hover{box-shadow:0 0 0 1px rgba(111,166,100,0.4)}
-        .step-card-side{transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease}
-        .step-card-side:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(26,25,22,0.08)}
-      `}</style>
-
       {/* NAV */}
       <nav className="fixed top-0 left-0 right-0 z-50 h-16 bg-beige-50/95 backdrop-blur-md border-b border-beige-200">
         <div className="w-full max-w-[1200px] mx-auto px-[clamp(20px,4vw,48px)] h-full flex items-center justify-between gap-4">
@@ -336,9 +315,9 @@ export default function LandingPage() {
             Quilp<span style={{ color: '#6FA664' }}>.</span>
           </a>
           <div className="hidden md:flex items-center gap-7">
-            {['#problem','#how','#solutions','#pricing'].map((href, i) => (
+            {['#problem','#how','#experience','#pricing'].map((href, i) => (
               <a key={href} href={href} className="text-[14px] text-ink-mid hover:text-ink transition-colors no-underline">
-                {['Problem','How it works','Solutions','Pricing'][i]}
+                {['Problem','How it works','Experience','Pricing'][i]}
               </a>
             ))}
           </div>
@@ -356,7 +335,7 @@ export default function LandingPage() {
 
       {menuOpen && (
         <div className="fixed top-16 left-0 right-0 z-40 bg-white border-b border-beige-200 px-6 pt-5 pb-7 flex flex-col gap-1.5 md:hidden">
-          {[['#problem','Problem'],['#how','How it works'],['#solutions','Solutions'],['#pricing','Pricing']].map(([href,label]) => (
+          {[['#problem','Problem'],['#how','How it works'],['#experience','Experience'],['#pricing','Pricing']].map(([href,label]) => (
             <a key={href} href={href} onClick={() => setMenuOpen(false)} className="text-[15px] text-ink-mid py-2.5 border-b border-beige-100 no-underline">{label}</a>
           ))}
           <div className="flex gap-2 mt-3">
@@ -373,30 +352,33 @@ export default function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-[44px] md:gap-[60px] items-center">
             <div className="flex flex-col gap-7">
               <div className="inline-flex items-center gap-2 bg-sage-50 border border-sage-200 rounded-full px-4 py-[5px] text-[12px] font-[500] text-sage-600 w-fit" style={{ animation: 'fadeIn .65s ease .05s both' }}>
-                <div className="w-[5px] h-[5px] rounded-full bg-sage-400" />Quill + Productivity
+                <div className="w-[5px] h-[5px] rounded-full bg-sage-400" />Client Execution OS for Accountants
               </div>
               <h1 className="font-serif font-bold leading-[1.05] tracking-[-2.5px] text-[clamp(44px,5.5vw,76px)] text-ink" style={{ animation: 'fadeIn .65s ease .15s both' }}>
-                <span className="block">Your entire</span>
-                <span className="block">practice,</span>
-                <em className="not-italic font-[500] text-sage-600 block">built in</em>
-                <em className="not-italic font-[500] text-sage-600 block">90 seconds.</em>
+                <span className="block">Your clients</span>
+                <span className="block">do the work.</span>
+                <em className="not-italic font-[500] text-sage-600 block">You review</em>
+                <em className="not-italic font-[500] text-sage-600 block">and deliver.</em>
               </h1>
               <p className="text-[clamp(15px,1.5vw,18px)] text-ink-mid leading-[1.8] max-w-[500px] font-light" style={{ animation: 'fadeIn .65s ease .25s both' }}>
-                Describe your firm in plain English. Quilp generates your{' '}
-                <strong className="font-[500] text-ink">engagement letters, client portals, invoices, deadline dashboards, and workflows</strong>
-                {' '}— automatically. No templates. No setup. No IT team.
+                You create the service. Define the steps, documents, and price. Quilp turns it into a{' '}
+                <strong className="font-[500] text-ink">structured client process</strong>
+                {' '}— your client follows, uploads, and tracks progress like an Amazon order. <strong className="font-[500] text-ink">No email. No back-and-forth.</strong>
               </p>
               <div className="flex gap-2 max-w-[460px] flex-wrap" style={{ animation: 'fadeIn .65s ease .35s both' }}>
                 <input type="email" placeholder="your@firm.com" className="flex-1 min-w-[180px] text-[14px] text-ink bg-white border border-beige-300 rounded-[10px] px-[18px] py-[14px] outline-none focus:border-sage-400 transition-colors placeholder:text-ink-soft" />
-                <button type="button" className="text-[14px] font-[500] bg-sage-400 text-white px-6 py-[14px] rounded-[10px] hover:bg-sage-600 transition-colors whitespace-nowrap border-none cursor-pointer">Get early access →</button>
+                <button type="button" className="text-[14px] font-[500] bg-sage-400 text-white px-6 py-[14px] rounded-[10px] hover:bg-sage-600 transition-colors whitespace-nowrap border-none cursor-pointer">Start your firm free →</button>
               </div>
               <div className="flex items-center gap-3 text-[12px] text-ink-soft flex-wrap" style={{ animation: 'fadeIn .65s ease .44s both' }}>
-                <span>No credit card required</span>
+                <span>No credit card</span>
                 <div className="w-px h-3 bg-beige-300 hidden sm:block" />
                 <span>30-day free trial</span>
                 <div className="w-px h-3 bg-beige-300 hidden sm:block" />
-                <span>Setup in 3 minutes</span>
+                <span>Setup in 10 minutes</span>
               </div>
+              <p className="text-[11px] text-ink-soft italic" style={{ animation: 'fadeIn .65s ease .52s both' }}>
+                Create your first service. Assign it to a client. Watch them execute it — without calling you.
+              </p>
             </div>
             <div style={{ animation: 'fadeIn .7s ease .25s both' }}>
               <Terminal />
@@ -409,13 +391,13 @@ export default function LandingPage() {
       <div className="border-t border-b border-beige-200 bg-white py-8">
         <div className="w-full max-w-[1200px] mx-auto px-[clamp(20px,4vw,48px)]">
           <div className="flex justify-center items-center gap-[clamp(24px,6vw,80px)] flex-wrap">
-            <Metric value={89} suffix="K+" label="accounting firms in the US"  dur={1200} delay={0}   />
+            <Metric value={89} suffix="K+" label="accounting firms still running on email"  dur={1200} delay={0}   />
             <div className="w-px h-[44px] bg-beige-200 hidden sm:block" />
-            <Metric value={6}  suffix=" hrs" label="saved per client onboarded" dur={800}  delay={100} />
+            <Metric value={6}  suffix=" hrs" label="lost per client onboarded at $300/hr = $1,800 gone" dur={800}  delay={100} />
             <div className="w-px h-[44px] bg-beige-200 hidden sm:block" />
-            <Metric value={90} suffix="s"    label="to generate your full system" dur={1000} delay={200} />
+            <Metric value={0} suffix=""    label="emails needed when clients use Quilp portal" dur={0} delay={200} />
             <div className="w-px h-[44px] bg-beige-200 hidden sm:block" />
-            <Metric prefix="$" value={0} suffix="" label="setup cost, ever"       dur={0}    delay={300} />
+            <Metric value={100} suffix="%" label="of files organized per client, per service" dur={1000} delay={300} />
           </div>
         </div>
       </div>
@@ -425,31 +407,27 @@ export default function LandingPage() {
         <div className="w-full max-w-[1200px] mx-auto px-[clamp(20px,4vw,48px)]">
           <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-600 mb-[14px]">The problem</div>
           <h2 className="rev-u font-serif text-[clamp(30px,4vw,52px)] font-[500] text-ink tracking-[-1.5px] leading-[1.1] mb-4" style={d(100)}>
-            Professionals waste 40%<br />of their week on <em className="not-italic text-sage-600">non-work.</em>
+            Your practice runs on<br /><em className="not-italic text-sage-600">email, WhatsApp,<br />and spreadsheets.</em>
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-9 md:gap-[60px] items-start mt-[52px]">
             <div>
               <p className="rev-u text-[15px] text-ink-mid leading-[1.85] mb-5 font-light" style={d(200)}>
-                Every solo CPA, attorney, and consultant in America spends{' '}
-                <strong className="font-[500] text-ink">30–40% of their week</strong>{' '}
-                on work that has nothing to do with their actual profession — manually writing engagement letters, chasing documents by email, copy-pasting invoices, and tracking deadlines in spreadsheets.
+                Every new client starts the same way. You send an email explaining what you need. They reply asking what that means. You follow up. They forget. You chase. A week later you have 3 documents out of 12. The deadline is in 5 days.
               </p>
               <p className="rev-u text-[15px] text-ink-mid leading-[1.85] mb-5 font-light" style={d(280)}>
-                When a new client signs up, the average professional spends{' '}
-                <strong className="font-[500] text-ink">5–6 hours on onboarding alone</strong>
-                {' '}— drafting contracts, collecting documents, setting up billing. Every single time. From scratch. That&apos;s $1,500–$2,400 of invisible cost per client, per year.
+                This is not a client problem. <strong className="font-[500] text-ink">It&apos;s a systems problem.</strong> There is no structured process. No checklist the client follows. No place where everything lives. Just a thread of emails and a lot of stress.
               </p>
               <blockquote className="rev-u border-l-[3px] border-sage-400 pl-[22px] py-4 bg-sage-50 rounded-r-[12px] font-serif text-[16px] italic text-ink leading-[1.7]" style={d(360)}>
-                &ldquo;I became a CPA to do accounting — not spend my Sundays writing engagement letters and chasing documents.&rdquo;
+                &ldquo;I spent 40% of my time chasing documents, sending reminders, and answering &lsquo;what do you need from me?&rsquo; Now I get a notification when a client submits. That&apos;s it.&rdquo;
                 <cite className="block text-[12px] not-italic text-ink-soft mt-2 font-sans">— Jennifer Mills, CPA · Solo practice · Austin, TX</cite>
               </blockquote>
             </div>
             <div className="flex flex-col gap-[14px]">
               {[
-                ['6h+',    'Lost per client onboarding',             'Every new client requires a contract, document checklist, billing setup, and follow-ups — all manual, all from scratch, every time.',           0  ],
-                ['$1,500', 'Invisible cost per client per year',     'At $300/hr billing rate, 5 hours of admin per client = $1,500 of time you could be billing. Multiply by 40 clients.',                         80 ],
-                ['44K',    'Solo CPAs with zero operational system', "Running on Excel, Gmail, and Word in 2025. The chaos is the norm — and it doesn't have to be.",                                               160],
-                ['0',      'AI tools built for this segment',        'No product below $400/month generates a complete practice system using AI. Quilp is the first.',                                              240],
+                ['6h+',    'Lost per client per service',            'Drafting the engagement, explaining requirements, chasing documents, answering questions — all before the actual work begins.',                 0  ],
+                ['$1,800', 'Invisible cost per client per year',     '6 hours × $300/hr billing rate = $1,800 of time lost to admin per client. With 40 clients, that\'s $72,000/year.',                            80 ],
+                ['0',      'Structure in the client\'s experience',  'Clients have no idea what\'s happening, what you need, or where their process stands. So they call. And email. And WhatsApp.',                 160],
+                ['∞',      'Files scattered everywhere',             'Email attachments, Dropbox links, WhatsApp photos, Google Drive folders. Nothing is where it should be. Nothing is organized.',               240],
               ].map(([num, title, body, delay]) => (
                 <div key={num as string} className="rev-u bg-white border border-beige-200 rounded-[16px] px-6 py-[22px] flex gap-[18px] items-start" style={d(delay as number)}>
                   <div className="font-serif text-[clamp(24px,2.5vw,34px)] font-[500] text-sage-400 leading-none min-w-[70px]">{num}</div>
@@ -467,18 +445,18 @@ export default function LandingPage() {
       {/* HOW IT WORKS */}
       <section id="how" className="bg-beige-100 border-t border-b border-beige-200 py-[clamp(72px,8vw,112px)]">
         <div className="w-full max-w-[1200px] mx-auto px-[clamp(20px,4vw,48px)]">
-          <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-600 mb-[14px]">How it works</div>
+          <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-600 mb-[14px]">Why everything else fails</div>
           <h2 className="rev-u font-serif text-[clamp(30px,4vw,52px)] font-[500] text-ink tracking-[-1.5px] leading-[1.1] mb-4" style={d(100)}>
-            Three steps.<br /><em className="not-italic text-sage-600">One complete system.</em>
+            Current tools solve<br /><em className="not-italic text-sage-600">the wrong problem.</em>
           </h2>
           <p className="rev-u text-[clamp(14px,1.4vw,17px)] text-ink-mid max-w-[580px] leading-[1.85] font-light mb-[52px]" style={d(200)}>
-            No consultants. No onboarding calls. No IT. You describe, Quilp builds, you run your practice.
+            Practice management software organizes the accountant&apos;s side. It does nothing about the client&apos;s side — which is where the chaos actually lives.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-px bg-beige-200 rounded-[18px] overflow-hidden">
             {([
-              { num: '01', title: 'Describe your practice', body: "Tell Quilp about your firm in plain English — services, states, client types, fee model. Two minutes. No forms. Just type naturally, the way you'd explain it to a colleague.", tag: 'Natural language input', delay: 0,   type: 'side' },
-              { num: '02', title: 'AI builds everything',   body: 'Quilp generates your engagement letters, client portals, invoice templates, deadline dashboards, and workflows — all tailored to your practice in under 90 seconds.',                    tag: 'Generated in under 90s', delay: 120, type: 'mid'  },
-              { num: '03', title: 'Run fully automated',    body: 'Onboard clients, send documents for e-sign, collect files, issue invoices, and track every deadline — all from one dashboard. Everything connected.',                                     tag: 'Everything connected',   delay: 240, type: 'side' },
+              { num: '01', title: 'Email is not a workflow',                             body: "You can't track progress in an inbox. You can't enforce steps. You can't ensure everything is received. Email was never designed to run a client process.",        tag: 'Root cause',         delay: 0,   type: 'side' },
+              { num: '02', title: 'Practice management tools manage you, not the process', body: 'TaxDome, Canopy, Karbon — they\'re dashboards for accountants. The client still sends files by email and has no idea what\'s happening on your end.',            tag: 'Wrong side of chaos', delay: 120, type: 'mid'  },
+              { num: '03', title: "Generic portals don't match your services",            body: "A portal that says 'upload your documents' doesn't tell the client which documents, why they're needed, or what happens next. It creates confusion, not completion.", tag: 'No structure',       delay: 240, type: 'side' },
             ] as const).map(({ num, title, body, tag, delay, type }) => (
               <div key={num}
                 className={`rev-u bg-beige-50 hover:bg-white px-8 py-[38px] flex flex-col gap-4 ${type === 'mid' ? 'step-card-mid transition-[box-shadow,background-color] duration-200' : 'step-card-side'}`}
@@ -492,16 +470,15 @@ export default function LandingPage() {
             ))}
           </div>
           <div className="rev-u bg-white border border-beige-200 rounded-[16px] px-7 py-6 mt-12" style={d(100)}>
-            <div className="text-[10px] font-[500] tracking-[0.08em] uppercase text-ink-soft mb-3">Example — what a CPA types into Quilp</div>
+            <div className="text-[10px] font-[500] tracking-[0.08em] uppercase text-ink-soft mb-3">What Quilp actually is</div>
             <p className="font-serif text-[clamp(14px,1.3vw,16px)] text-ink-mid leading-[1.85] italic">
-              &ldquo;I run a solo CPA practice in <strong className="text-ink not-italic">Tampa, Florida</strong>. I do{' '}
-              <strong className="text-ink not-italic">individual 1040s, S-Corps, and monthly bookkeeping</strong>{' '}
-              for small businesses under $2M. Flat-fee for taxes, monthly retainers for bookkeeping. About 40 active clients.&rdquo;
+              Not a portal. Not a CRM. Not a document tool. Quilp is the system that turns your accounting services into{' '}
+              <strong className="text-ink not-italic">structured, self-executing client processes.</strong>
             </p>
             <div className="flex items-start gap-3 mt-[18px] pt-4 border-t border-beige-100 text-[12px] text-ink-soft flex-wrap">
-              <span className="pt-1 whitespace-nowrap">Quilp generates →</span>
+              <span className="pt-1 whitespace-nowrap">Two sides. One system →</span>
               <div className="flex flex-wrap gap-1.5">
-                {['4 engagement letters','3 onboarding portals','Full IRS deadline calendar','Invoice templates','Tax doc checklist — 1040','SignNow integration'].map(t => (
+                {['You define the service','Client gets a process portal','They upload & track progress','You review & deliver','Invoice auto-generated','Loop closed'].map(t => (
                   <span key={t} className="text-[11px] font-[500] px-[14px] py-1 rounded-full bg-sage-50 text-sage-600 border border-sage-200">{t}</span>
                 ))}
               </div>
@@ -511,23 +488,23 @@ export default function LandingPage() {
       </section>
 
       {/* SOLUTIONS */}
-      <section id="solutions" className="bg-ink py-[clamp(72px,8vw,112px)]">
+      <section id="experience" className="bg-ink py-[clamp(72px,8vw,112px)]">
         <div className="w-full max-w-[1200px] mx-auto px-[clamp(20px,4vw,48px)]">
           <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-400 mb-[14px]">What&apos;s included</div>
           <h2 className="rev-u font-serif text-[clamp(30px,4vw,52px)] font-[500] text-white tracking-[-1.5px] leading-[1.1] mb-4" style={d(100)}>
             Six modules.<br /><em className="not-italic text-sage-400">Everything your practice needs.</em>
           </h2>
           <p className="rev-u text-[16px] text-white/40 max-w-[560px] leading-[1.85] font-light mb-[52px]" style={d(200)}>
-            Each module auto-generated from your practice description. No manual setup. No configuration. Works from day one.
+            Each module is part of the system from day one. No manual setup. No configuration. Assign a service to a client — it all runs.
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-px bg-white/[0.07] rounded-[18px] overflow-hidden">
             {[
-              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><rect x="3" y="2" width="12" height="14" rx="2" stroke="#6FA664" strokeWidth="1.2"/><line x1="6" y1="7" x2="12" y2="7" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/><line x1="6" y1="10" x2="10" y2="10" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/></svg>, title: 'Document Generator',       body: 'Engagement letters, proposals, IRS Form 2848 — state-compliant, AICPA-standard, editable. Never write a contract from scratch again.',                                  delay: 0   },
-              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><rect x="2" y="2" width="6" height="6" rx="1.5" stroke="#6FA664" strokeWidth="1.2"/><rect x="10" y="2" width="6" height="6" rx="1.5" stroke="#6FA664" strokeWidth="1.2"/><rect x="2" y="10" width="6" height="6" rx="1.5" stroke="#6FA664" strokeWidth="1.2"/><rect x="10" y="10" width="6" height="6" rx="1.5" stroke="#6FA664" strokeWidth="1.2"/></svg>, title: 'Client Onboarding Portal', body: 'A branded, secure portal per service type. Clients sign letters and upload documents without a single email attachment. You get notified instantly.',               delay: 60  },
-              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><rect x="2" y="4" width="14" height="11" rx="2" stroke="#6FA664" strokeWidth="1.2"/><line x1="2" y1="8" x2="16" y2="8" stroke="#6FA664" strokeWidth="1.2"/><line x1="6" y1="2" x2="6" y2="6" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/><line x1="12" y1="2" x2="12" y2="6" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/></svg>, title: 'Deadline Dashboard',         body: 'Every IRS filing deadline for every client — 1040, S-Corp, payroll, extensions. Automatic alerts at 30, 14, and 7 days. Zero missed filings.',                          delay: 120 },
-              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><path d="M9 2v14M5 6h8M5 12h8" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/></svg>, title: 'Billing & Invoicing',        body: 'Auto-generate invoices on delivery. Recurring billing for retainers. Stripe integration for online payment. AR aging so nothing slips.',                               delay: 180 },
-              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><circle cx="9" cy="7" r="3.5" stroke="#6FA664" strokeWidth="1.2"/><path d="M3 16c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/></svg>, title: 'Client Pipeline',             body: 'Track every client from prospect to delivered — Engaged → Onboarding → In Progress → Filed. Always know what needs attention first.',                                   delay: 240 },
-              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><circle cx="9" cy="9" r="6.5" stroke="#6FA664" strokeWidth="1.2"/><path d="M6.5 9l2 2 3.5-3.5" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: 'Practice Memory AI',          body: 'Every edit you make teaches Quilp your preferences. After 90 days, the system knows your practice better than any template ever could.',                                delay: 300 },
+              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><rect x="3" y="2" width="12" height="14" rx="2" stroke="#6FA664" strokeWidth="1.2"/><line x1="6" y1="7" x2="12" y2="7" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/><line x1="6" y1="10" x2="10" y2="10" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/></svg>, title: 'Service Menu',           body: 'Create services with name, price, steps, required documents, and estimated time. Define once. Deploy to any client in seconds.',                                          delay: 0   },
+              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><rect x="2" y="2" width="6" height="6" rx="1.5" stroke="#6FA664" strokeWidth="1.2"/><rect x="10" y="2" width="6" height="6" rx="1.5" stroke="#6FA664" strokeWidth="1.2"/><rect x="2" y="10" width="6" height="6" rx="1.5" stroke="#6FA664" strokeWidth="1.2"/><rect x="10" y="10" width="6" height="6" rx="1.5" stroke="#6FA664" strokeWidth="1.2"/></svg>, title: 'Process Engine',         body: 'Every service becomes a structured process per client — with stages, statuses, and actions for both sides. No setup. Already built.',                                      delay: 60  },
+              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><rect x="2" y="4" width="14" height="11" rx="2" stroke="#6FA664" strokeWidth="1.2"/><line x1="2" y1="8" x2="16" y2="8" stroke="#6FA664" strokeWidth="1.2"/><line x1="6" y1="2" x2="6" y2="6" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/><line x1="12" y1="2" x2="12" y2="6" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/></svg>, title: 'Client Execution',       body: 'Clients follow a clear checklist, upload every required document, and track their progress — no email, no calls, no confusion.',                                            delay: 120 },
+              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><path d="M9 2v14M5 6h8M5 12h8" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/></svg>, title: 'Invoices & Payments',      body: 'Invoices auto-generated from the service price. Stripe-linked for online payment. AR aging and recurring billing for retainers.',                                          delay: 180 },
+              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><circle cx="9" cy="7" r="3.5" stroke="#6FA664" strokeWidth="1.2"/><path d="M3 16c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round"/></svg>, title: 'Accountant Dashboard',   body: 'All clients, all active processes, pending documents, items needing review — one view. Always organized. Always current.',                                                   delay: 240 },
+              { icon: <svg viewBox="0 0 18 18" fill="none" width={18} height={18}><circle cx="9" cy="9" r="6.5" stroke="#6FA664" strokeWidth="1.2"/><path d="M6.5 9l2 2 3.5-3.5" stroke="#6FA664" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"/></svg>, title: 'File Storage',              body: 'Every document lives in the right place — private, organized by Client → Service → Process. Nothing lost. Nothing in someone\'s email.',                                    delay: 300 },
             ].map(({ icon, title, body, delay }) => (
               <div key={title} className="rev-u feat-card-hover bg-ink hover:bg-white/[0.04] px-[30px] py-[34px] flex flex-col gap-[14px]" style={d(delay)}>
                 <div className="w-10 h-10 rounded-[10px] bg-sage-400/10 border border-sage-400/20 flex items-center justify-center">{icon}</div>
@@ -545,19 +522,19 @@ export default function LandingPage() {
         <div className="w-full max-w-[1200px] mx-auto px-[clamp(20px,4vw,48px)]">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-9 md:gap-[72px] items-center">
             <div>
-              <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-600 mb-[14px]">Under the hood</div>
+              <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-600 mb-[14px]">State-aware logic</div>
               <h2 className="rev-u font-serif text-[clamp(30px,4vw,52px)] font-[500] text-ink tracking-[-1.5px] leading-[1.1] mb-4" style={d(100)}>
-                AI that learns<br /><em className="not-italic text-sage-600">your practice.</em>
+                Florida is not Delaware.<br /><em className="not-italic text-sage-600">Quilp knows the difference.</em>
               </h2>
               <p className="rev-u text-[clamp(14px,1.4vw,17px)] text-ink-mid leading-[1.85] font-light mb-2" style={d(200)}>
-                Quilp isn&apos;t a template engine. It gets smarter with every document you edit, every client you onboard, every deadline you track.
+                Your services adapt automatically based on the client&apos;s filing state. Compliance language, required documents, and deadlines adjust without you lifting a finger.
               </p>
               <div className="flex flex-col gap-4 mt-2">
                 {[
-                  ['Practice memory',            'learns your clause preferences, formatting, and fee structures. Every edit makes the next generation better.',        0  ],
-                  ['State-aware',                'compliance language built for your jurisdiction automatically. Florida, Texas, New York — each one is different.',    80 ],
-                  ['AICPA-aligned',              'every engagement letter follows professional standards by default. No legal review required.',                        160],
-                  ['SignNow + Stripe built-in', 'send for signature and collect payment without leaving Quilp. One click.',                                           240],
+                  ['Federal only',              'Florida clients get a federal 1040 only — no state return. No state-specific language. No extra documents.',          0  ],
+                  ['State + federal',            'New York clients get IT-201 added automatically, NY compliance language, and an expanded 11-item document checklist.', 80 ],
+                  ['Deadlines adapt',            'filing dates, extension rules, and alert windows update per jurisdiction. You define the service once.',               160],
+                  ['Every state handled',        'you describe the service once. The system adapts it to where your client lives. No manual adjustments.',              240],
                 ].map(([strong, rest, delay]) => (
                   <div key={strong as string} className="rev-u flex items-start gap-3 text-[14px] text-ink-mid leading-[1.7]" style={d(delay as number)}>
                     <div className="w-5 h-5 rounded-full bg-sage-50 border border-sage-200 flex items-center justify-center flex-shrink-0 mt-[2px]"><CheckIcon /></div>
@@ -613,9 +590,9 @@ export default function LandingPage() {
       {/* TESTIMONIALS */}
       <section className="bg-beige-100 border-t border-b border-beige-200 py-[clamp(72px,8vw,112px)]">
         <div className="w-full max-w-[1200px] mx-auto px-[clamp(20px,4vw,48px)]">
-          <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-600 mb-[14px]">What professionals are saying</div>
+          <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-600 mb-[14px]">What accountants say</div>
           <h2 className="rev-u font-serif text-[clamp(30px,4vw,52px)] font-[500] text-ink tracking-[-1.5px] leading-[1.1] mb-12" style={d(100)}>
-            Real practices.<br /><em className="not-italic text-sage-600">Real results.</em>
+            Real firms.<br /><em className="not-italic text-sage-600">Real results.</em>
           </h2>
           <div className="px-10">
             <Carousel />
@@ -631,7 +608,7 @@ export default function LandingPage() {
             Simple pricing.<br /><em className="not-italic text-sage-600">No surprises.</em>
           </h2>
           <p className="rev-u text-[clamp(14px,1.4vw,17px)] text-ink-mid max-w-[580px] leading-[1.85] font-light mb-14" style={d(200)}>
-            Start free for 30 days. Upgrade when ready. Cancel anytime.
+            Start free for 30 days. No credit card required. Upgrade when ready.
           </p>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-[420px] md:max-w-none mx-auto">
             {/* Solo */}
@@ -644,7 +621,7 @@ export default function LandingPage() {
               <p className="text-[13px] text-ink-mid leading-[1.65]">For solo professionals with up to 50 active clients.</p>
               <div className="h-px bg-beige-200" />
               <div className="flex flex-col gap-[11px] flex-1">
-                {['Document generator — all types','Client onboarding portal','Deadline dashboard','10 SignNow sends/month','Email support'].map(f => (
+                {['Service menu — unlimited services','Process engine per client','Client portal with file upload','Document storage — organized','Invoicing + PDF export','10 SignNow sends/month','Deadline calendar + alerts'].map(f => (
                   <div key={f} className="flex items-start gap-2.5 text-[13px] text-ink-mid">
                     <div className="w-[17px] h-[17px] rounded-full bg-sage-50 border border-sage-200 flex items-center justify-center flex-shrink-0 mt-[1px]"><CheckIcon /></div>{f}
                   </div>
@@ -664,7 +641,7 @@ export default function LandingPage() {
               <p className="text-[13px] text-white/[0.42] leading-[1.65]">For firms with up to 3 staff and unlimited clients.</p>
               <div className="h-px bg-white/10" />
               <div className="flex flex-col gap-[11px] flex-1">
-                {['Everything in Solo','Unlimited clients & SignNow','Billing & invoicing (Stripe)','Practice memory AI','Priority support + onboarding'].map(f => (
+                {['Everything in Solo','Unlimited clients & processes','Unlimited SignNow','Stripe payment integration','Recurring billing automation','State-aware compliance logic','Priority support + onboarding'].map(f => (
                   <div key={f} className="flex items-start gap-2.5 text-[13px] text-white/50">
                     <div className="w-[17px] h-[17px] rounded-full bg-sage-400/[0.12] border border-sage-400/[0.25] flex items-center justify-center flex-shrink-0 mt-[1px]"><CheckIcon stroke="#6FA664" /></div>{f}
                   </div>
@@ -683,7 +660,7 @@ export default function LandingPage() {
               <p className="text-[13px] text-ink-mid leading-[1.65]">For firms with up to 10 staff, white-label, and API.</p>
               <div className="h-px bg-beige-200" />
               <div className="flex flex-col gap-[11px] flex-1">
-                {['Everything in Practice','White-label client portal','Custom reports & analytics','API access + integrations','Dedicated account manager'].map(f => (
+                {['Everything in Practice','White-label client portal','Custom domain for portal','Advanced analytics & reports','API access + integrations','Dedicated account manager'].map(f => (
                   <div key={f} className="flex items-start gap-2.5 text-[13px] text-ink-mid">
                     <div className="w-[17px] h-[17px] rounded-full bg-sage-50 border border-sage-200 flex items-center justify-center flex-shrink-0 mt-[1px]"><CheckIcon /></div>{f}
                   </div>
@@ -692,28 +669,29 @@ export default function LandingPage() {
               <Link href="/signup" className="block text-center text-[14px] font-[500] py-[14px] rounded-[10px] bg-transparent text-ink border border-beige-300 hover:opacity-85 transition-opacity no-underline mt-auto">Start free trial</Link>
             </div>
           </div>
+          <p className="text-center mt-7 text-[12px] text-ink-soft italic">The math: Quilp replaces 22 hours/month of admin. At $250/hr, that&apos;s $5,500 recovered. You pay us $399. The rest is yours.</p>
         </div>
       </section>
 
       {/* CTA */}
       <div className="bg-ink py-[clamp(80px,10vw,120px)] text-center">
         <div className="w-full max-w-[1200px] mx-auto px-[clamp(20px,4vw,48px)]">
-          <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-400 mb-5">Ready to start?</div>
+          <div className="rev-l text-[11px] font-[500] tracking-[0.1em] uppercase text-sage-400 mb-5">Ready to stop chasing clients?</div>
           <h2 className="rev-u font-serif text-[clamp(34px,5vw,64px)] font-bold text-white tracking-[-2px] leading-[1.05] mb-[18px]" style={d(100)}>
-            Stop doing it<br />the hard way.<br /><em className="not-italic font-[500] text-sage-400">Use Quilp.</em>
+            Create your first service.<br />Assign it to a client.<br /><em className="not-italic font-[500] text-sage-400">Watch them execute.</em>
           </h2>
           <p className="rev-u text-[17px] text-white/40 max-w-[460px] mx-auto mb-10 leading-[1.85] font-light" style={d(200)}>
-            Join professionals already running their practices on Quilp. Up in 3 minutes. No credit card required.
+            No demo call. No setup fee. No IT required. Create a service, send the portal link, and your client does the rest — today.
           </p>
           <div className="rev-u flex gap-[14px] justify-center flex-wrap" style={d(280)}>
             <Link href="/signup" className="cta-pulse text-[15px] font-[500] bg-sage-400 text-white px-9 py-4 rounded-[10px] hover:bg-sage-600 transition-colors no-underline">
-              Start your free trial →
+              Start free — no card needed →
             </Link>
             <a href="#how" className="text-[15px] text-white/45 bg-transparent px-7 py-4 rounded-[10px] border border-white/[0.14] no-underline hover:text-white/70 transition-colors">
-              Schedule a demo
+              Schedule a demo instead
             </a>
           </div>
-          <div className="mt-7 text-[12px] text-white/20">No credit card · 30-day free trial · Cancel anytime</div>
+          <div className="mt-7 text-[12px] text-white/20">30-day free trial · Cancel anytime · Setup in 10 minutes · We won&apos;t email you 7 times</div>
         </div>
       </div>
 
@@ -725,7 +703,7 @@ export default function LandingPage() {
               Quilp<span style={{ color: '#6FA664' }}>.</span>
             </span>
             <div className="flex gap-5 flex-wrap">
-              {[['#','Product'],['#pricing','Pricing'],['/privacy','Privacy'],['/terms','Terms'],['mailto:hello@quilp.com','hello@quilp.com']].map(([href,label]) => (
+              {[['#','Product'],['#pricing','Pricing'],['/privacy','Privacy'],['/terms','Terms'],['mailto:hello@quilp.io','hello@quilp.io']].map(([href,label]) => (
                 <a key={label} href={href} className="text-[12px] text-white/25 no-underline hover:text-white/50 transition-colors">{label}</a>
               ))}
             </div>

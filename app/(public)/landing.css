@@ -1,0 +1,26 @@
+/* Scroll reveal */
+.rev-u,.rev-l{opacity:0;transition:opacity .5s ease,transform .5s ease;transition-delay:var(--d,0ms);will-change:transform}
+.rev-u{transform:translateY(20px)}
+.rev-l{transform:translateX(-20px)}
+.rev-u.in,.rev-l.in{opacity:1!important;transform:none!important}
+@media(prefers-reduced-motion:reduce){.rev-u,.rev-l{opacity:1!important;transform:none!important;transition:none!important}}
+
+/* Terminal cursor */
+@keyframes blink{50%{opacity:0}}
+.term-cursor{display:inline-block;width:8px;height:14px;background:#6FA664;border-radius:1px;vertical-align:middle;animation:blink 1s step-end infinite}
+
+/* General fade-in (used inline via style attribute) */
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* CTA pulse ring */
+@keyframes ctaPulse{0%,100%{box-shadow:0 0 0 0 rgba(111,166,100,0)}50%{box-shadow:0 0 0 8px rgba(111,166,100,.15)}}
+.cta-pulse{animation:ctaPulse 2s ease infinite}
+
+/* Feature card hover lift */
+.feat-card-hover{transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease}
+.feat-card-hover:hover{transform:translateY(-3px);box-shadow:0 8px 32px rgba(26,25,22,0.12)}
+
+/* How-it-works step cards */
+.step-card-mid:hover{box-shadow:0 0 0 1px rgba(111,166,100,0.4)}
+.step-card-side{transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease}
+.step-card-side:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(26,25,22,0.08)}

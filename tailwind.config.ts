@@ -74,7 +74,7 @@ const config: Config = {
       fontFamily: {
         serif: ['var(--font-playfair)', 'Georgia', 'serif'],
         sans:  ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        mono:  ['JetBrains Mono', 'monospace'],
+        mono:  ['var(--font-jetbrains)', 'JetBrains Mono', 'monospace'],
       },
 
       // ── Border Radius ────────────────────────────────────────────────
