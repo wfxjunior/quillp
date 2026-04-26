@@ -1,3 +1,5 @@
+export const maxDuration = 15
+
 /**
  * POST /api/ai/parse-firm
  * blueprint-part2.md §11.1

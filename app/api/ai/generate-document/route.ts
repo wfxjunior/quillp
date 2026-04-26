@@ -1,3 +1,5 @@
+export const maxDuration = 30
+
 /**
  * POST /api/ai/generate-document
  * blueprint-part2.md §11.2 – §11.6
